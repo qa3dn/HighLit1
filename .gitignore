@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+backend/dist/
+frontend/.next/
+**/dist/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python (Django)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Logs and coverage
+*.log
+coverage/
+.pytest_cache/
