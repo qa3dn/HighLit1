@@ -37,7 +37,7 @@ VITE_API_URL=http://localhost:8000/api/v1
 - عندما يكون الباكند لا يزال Nest على 3001، يمكن مؤقتاً:
 
 ```env
-VITE_API_URL=http://localhost:3001
+VITE_API_URL=http://localhost:8000/api/v1
 ```
 
 **ملاحظة:** بادئة `VITE_` مطلوبة في Vite لإتاحة المتغير للـ client.

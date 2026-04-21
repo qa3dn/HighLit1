@@ -96,7 +96,7 @@ export function RegisterForm() {
         console.log('✅ API is available')
       } catch (healthErr: any) {
         console.error('❌ API health check failed:', healthErr)
-        setError('الخادم غير متاح. تأكد من أن الـ backend يعمل على http://localhost:3001')
+        setError('الخادم غير متاح. تأكد من أن الـ backend يعمل على http://localhost:8000')
         setIsLoading(false)
         return
       }
@@ -133,7 +133,7 @@ export function RegisterForm() {
       // Network error or 404
       if (!err.response) {
         if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
-          setError('لا يمكن الاتصال بالخادم. تأكد من أن الخادم يعمل على http://localhost:3001')
+          setError('لا يمكن الاتصال بالخادم. تأكد من أن الخادم يعمل على http://localhost:8000')
         } else {
           setError('خطأ في الاتصال: ' + (err.message || 'حدث خطأ غير معروف'))
         }
@@ -144,7 +144,7 @@ export function RegisterForm() {
       const errorMessage = err.response?.data?.message || err.message || ''
       
       if (err.response?.status === 404) {
-        setError('الخادم غير متاح. تأكد من أن الـ API يعمل على http://localhost:3001')
+        setError('الخادم غير متاح. تأكد من أن الـ API يعمل على http://localhost:8000')
       } else if (errorMessage.includes('already exists') || err.response?.status === 409) {
         if (errorMessage.includes('Username') || errorMessage.includes('username')) {
           setError('اسم المستخدم مستخدم بالفعل')
@@ -167,7 +167,7 @@ export function RegisterForm() {
 
   const handleGitHubRegister = () => {
     playClickSound()
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
     window.location.href = `${apiUrl}/auth/github`
   }
 

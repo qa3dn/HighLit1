@@ -54,7 +54,7 @@ export function LoginForm() {
       // Network error or 404
       if (!err.response) {
         if (err.code === 'ECONNREFUSED' || err.message?.includes('Network Error')) {
-          setError('لا يمكن الاتصال بالخادم. تأكد من أن الخادم يعمل على http://localhost:3001')
+          setError('لا يمكن الاتصال بالخادم. تأكد من أن الخادم يعمل على http://localhost:8000')
         } else {
           setError('خطأ في الاتصال: ' + (err.message || 'حدث خطأ غير معروف'))
         }
@@ -65,7 +65,7 @@ export function LoginForm() {
       const errorMessage = err.response?.data?.message || err.message || ''
       
       if (err.response?.status === 404) {
-        setError('الخادم غير متاح. تأكد من أن الـ API يعمل على http://localhost:3001')
+        setError('الخادم غير متاح. تأكد من أن الـ API يعمل على http://localhost:8000')
       } else if (errorMessage.includes('Invalid credentials') || err.response?.status === 401) {
         setError('خطأ: بيانات الدخول غير صحيحة. حاول مرة أخرى.')
       } else if (err.response?.status === 400) {
@@ -81,7 +81,7 @@ export function LoginForm() {
 
   const handleGitHubLogin = () => {
     playClickSound()
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
     window.location.href = `${apiUrl}/auth/github`
   }
 

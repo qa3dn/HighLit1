@@ -77,7 +77,7 @@ export function Whiteboard({ spaceId }: WhiteboardProps) {
     canvas.addEventListener('touchmove', draw)
     canvas.addEventListener('touchend', stopDrawing)
 
-    socket.on('whiteboard-updated', (data: any) => {
+    socket.on('whiteboard-update', (data: any) => {
       // Handle remote whiteboard updates
       if (data.whiteboardData.type === 'draw') {
         ctx.lineTo(data.whiteboardData.x, data.whiteboardData.y)
@@ -92,7 +92,7 @@ export function Whiteboard({ spaceId }: WhiteboardProps) {
       canvas.removeEventListener('touchstart', startDrawing)
       canvas.removeEventListener('touchmove', draw)
       canvas.removeEventListener('touchend', stopDrawing)
-      socket.off('whiteboard-updated')
+      socket.off('whiteboard-update')
     }
   }, [spaceId])
 

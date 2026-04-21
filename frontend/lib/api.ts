@@ -1,8 +1,6 @@
 import axios from 'axios'
 
-// Backend API runs on port 3001, frontend on 3000
-// If frontend is on 3000, backend should be on 3001
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 // Log API URL for debugging
 if (typeof window !== 'undefined') {

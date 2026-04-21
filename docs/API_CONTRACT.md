@@ -2,20 +2,18 @@
 
 هذا الملف **اتفاق عمل** بين فريق الباكند (Django) وفريق الفرونت (Next، Vite Admin). يجب تحديثه عند أي تغيير في المسارات أو أشكال JSON.
 
-**الأساس الحالي:** NestJS في `backend/` — التوثيق التفاعلي: `http://localhost:3001/api/docs` (Swagger).
-
-**الهدف المستقبلي:** Django REST + `drf-spectacular` (أو ما يعادله) تحت بادئة موحّدة مثل `/api/v1/`.
+**الأساس الحالي:** Django REST في `backend/` — التوثيق التفاعلي: `http://localhost:8000/api/docs` (Swagger).
 
 ---
 
 ## 1. قواعد عامة
 
-| البند | القيمة الحالية (Nest) |
+| البند | القيمة الحالية (Django) |
 |--------|-------------------------|
-| Base URL | `http://localhost:3001` |
+| Base URL | `http://localhost:8000/api/v1` |
 | مصادقة JWT | ترويسة `Authorization: Bearer <token>` |
 | تنسيق الأجسام | JSON |
-| CORS | أصول `http://localhost:3000`، `http://localhost:3001`، و`FRONTEND_URL` من البيئة (راجع `backend/src/main.ts`) — أضيفوا `5173` عند الحاجة لـ Vite |
+| CORS | أصول `http://localhost:3000` و`http://localhost:5173` |
 
 ---
 

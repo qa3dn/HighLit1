@@ -8,11 +8,11 @@
 
 | البند | الحالة المقترحة |
 |--------|------------------|
-| API الإنتاجي قريباً | **Django** في مجلد مثل `backend-django/` |
-| NestJS في `backend/` | **مرجع / وضع انتقالي** حتى اكتمال Django |
+| API الإنتاجي | **Django** في `backend/` |
+| NestJS | تمت إزالته ضمن hard replacement |
 | قاعدة البيانات | **PostgreSQL** — قاعدة واحدة `highlit` (لا تعارض migrations بين Nest و Django دون خطة) |
 
-إذا شغّلتم **Nest و Django** معاً على نفس الـ DB دون تنسيق، قد تتعارض الجداول. نسّقوا عبر الليدر.
+اعتمدوا على Django فقط ضمن هذا المستودع.
 
 ---
 
@@ -37,39 +37,36 @@ CREATE DATABASE highlit;
 | الخدمة | المنفذ الافتراضي | المجلد |
 |--------|------------------|--------|
 | Next.js (الموقع العام) | **3000** | `frontend/` |
-| NestJS (API الحالي) | **3001** | `backend/` |
-| Django (مستقبلي) | **8000** (مقترح) | `backend-django/` عند الإنشاء |
+| Django API | **8000** | `backend/` |
 | Vite (لوحة الأدمن) | **5173** | `admin-dashboard/` عند الإنشاء |
 
 ---
 
-## 4. الباكند — NestJS (الحالي)
+## 4. الباكند — Django (الحالي)
 
 ```powershell
 cd c:\Users\qa3dn\Desktop\HighLit\backend
-copy NUL .env
-# عدّل .env: DB_*, JWT_SECRET, PORT=3001, FRONTEND_URL=http://localhost:3000
-npm install
-npm run start:dev
-```
-
-- **Swagger:** [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
-- **صحة:** [http://localhost:3001/auth/health](http://localhost:3001/auth/health)
-
----
-
-## 5. الباكند — Django (عند الإضافة)
-
-```powershell
-cd c:\Users\qa3dn\Desktop\HighLit\backend-django
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+copy .env.example .env
+python manage.py makemigrations
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 ```
 
+- **Swagger:** [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
+- **صحة:** [http://localhost:8000/api/v1/auth/health](http://localhost:8000/api/v1/auth/health)
+
+---
+
+## 5. WebSocket (Channels)
+
+```powershell
+Path: `ws://localhost:8000/ws/spaces/lobby/`
+```
+
 - تأكيد `CORS` للأصول: `http://localhost:3000`، `http://localhost:5173`.
-- توثيق OpenAPI عند الجاهزية (راجع [TEAM_BACKEND_DJANGO.md](TEAM_BACKEND_DJANGO.md)).
 
 ---
 

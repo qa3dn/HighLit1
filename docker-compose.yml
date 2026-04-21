@@ -29,16 +29,16 @@ services:
       dockerfile: Dockerfile
     container_name: highlit-backend
     ports:
-      - "3000:3000"
+      - "8000:8000"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_USERNAME: postgres
+      DB_USER: postgres
       DB_PASSWORD: postgres
-      DB_DATABASE: highlit
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      FRONTEND_URL: http://localhost:3001
+      DB_NAME: highlit
+      CHANNEL_LAYER_BACKEND: redis
+      REDIS_URL: redis://redis:6379/0
+      CORS_ALLOWED_ORIGINS: http://localhost:3001
     depends_on:
       - postgres
       - redis
@@ -46,7 +46,7 @@ services:
       - highlit-network
     volumes:
       - ./backend:/app
-      - /app/node_modules
+      - /app/.venv
 
   frontend:
     build:
@@ -56,8 +56,8 @@ services:
     ports:
       - "3001:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3000
-      NEXT_PUBLIC_SOCKET_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_SOCKET_URL: ws://localhost:8000
     depends_on:
       - backend
     networks:

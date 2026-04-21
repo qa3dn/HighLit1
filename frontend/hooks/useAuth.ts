@@ -24,26 +24,10 @@ export function useCurrentUser() {
         }
         const response = await api.get('/auth/me')
         
-        // TransformInterceptor wraps response in {statusCode, data, timestamp}
-        // So we need to extract the actual user data
-        let userData = response.data?.data || response.data
-        
-        // If response.data has statusCode but no data, it's an error response
-        if (response.data && response.data.statusCode && !response.data.data) {
-          console.error('Auth error response:', response.data)
-          return null
-        }
-        
-        // If userData is still wrapped or doesn't have id, it might be the interceptor response
-        if (userData && !userData.id && userData.statusCode) {
-          // This means req.user was null/undefined or error occurred
-          console.error('User data missing id:', userData)
-          return null
-        }
-        
-        // Ensure we have an id
+        const userData = response.data
+
         if (!userData || !userData.id) {
-          console.error('No user data or id:', { userData, responseData: response.data })
+          console.error('No user data or id:', { responseData: response.data })
           return null
         }
         

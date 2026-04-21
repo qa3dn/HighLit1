@@ -1,6 +1,6 @@
 # فريق الباكند — Django (HighLit)
 
-هذا الدليل لفريق الباكند: **محمد قعدان، أحمد الحمد، أحمد محسن**. الهدف بناء **REST API** بـ **Django + Django REST Framework** يستبدل أو يتوازى مع الـ API الحالي (NestJS في `backend/`) حسب قرار الليدر الموثّق في [PROJECT_RUNBOOK.md](PROJECT_RUNBOOK.md).
+هذا الدليل لفريق الباكند: **محمد قعدان، أحمد الحمد، أحمد محسن**. الهدف بناء وصيانة **REST API** بـ **Django + Django REST Framework** في `backend/` كالباكند الأساسي للمشروع.
 
 ---
 
@@ -20,21 +20,16 @@ psql --version
 
 ---
 
-## 2. إنشاء مشروع Django (مقترح المجلد)
-
-**قرار الليدر:** إما مجلد جديد `backend-django/` بجانب `backend/` (Nest) أو استبدال تدريجي. لا تشغّل قاعدتين مختلفتين على نفس الـ DB دون تنسيق.
+## 2. إعداد مشروع Django (المجلد الحالي)
 
 ```powershell
-cd c:\Users\qa3dn\Desktop\HighLit
-mkdir backend-django
-cd backend-django
+cd c:\Users\qa3dn\Desktop\HighLit\backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install django djangorestframework psycopg2-binary python-dotenv
 pip install djangorestframework-simplejwt django-cors-headers
 # لاحقاً: drf-spectacular pytest pytest-django
-django-admin startproject config .
 ```
 
 ---
@@ -87,13 +82,11 @@ SECRET_KEY=django-secret-change-me
 
 ---
 
-## 6. الانتقال من NestJS
+## 6. تنظيم مسارات API
 
-1. **مصدر الحقيقة للمسارات الحالية:** [API_CONTRACT.md](API_CONTRACT.md) و Swagger على `http://localhost:3001/api/docs` عند تشغيل Nest.
-2. **استراتيجية:**
-   - **أ)** تجميد Nest على فرع `legacy-nest` والعمل على Django في `main`/`develop`.
-   - **ب)** تنفيذ **إصدار API** موحّد: مثلاً كل المسارات تحت `/api/v1/` في Django لتفادي الالتباس.
-3. **الكيانات المرجعية** في Nest: ملفات `*.entity.ts` تحت `backend/src` — استخدمها كدليل للحقول وليس نسخاً حرفياً إذا حسّنتم النموذج.
+1. **مصدر الحقيقة للمسارات الحالية:** [API_CONTRACT.md](API_CONTRACT.md) و Swagger على `http://localhost:8000/api/docs`.
+2. **الاستراتيجية:** تنفيذ **إصدار API** موحّد تحت `/api/v1/`.
+3. **الكيانات المرجعية:** أي تحسينات مستقبلية توثَّق مباشرة في عقد API.
 
 ---
 
@@ -119,12 +112,12 @@ pytest
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-cd c:\Users\qa3dn\Desktop\HighLit\backend-django
+cd c:\Users\qa3dn\Desktop\HighLit\backend
 python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 ```
 
-المنفذ **8000** مقترح؛ راجع [PROJECT_RUNBOOK.md](PROJECT_RUNBOOK.md) لتجنب التعارض مع Nest (3001).
+المنفذ **8000** هو المنفذ الافتراضي.
 
 ---
 
