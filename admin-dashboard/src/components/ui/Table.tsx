@@ -3,12 +3,12 @@ import React from 'react';
 interface Column {
   header: string;
   accessor: string;
-  render?: (value: any, item: any) => React.ReactNode;
+  render?: (value: unknown, item: Record<string, unknown>) => React.ReactNode;
 }
 
 interface TableProps {
   columns: Column[];
-  data: any[];
+  data: Record<string, unknown>[];
 }
 
 export const Table: React.FC<TableProps> = ({ columns, data }) => {
@@ -34,7 +34,7 @@ export const Table: React.FC<TableProps> = ({ columns, data }) => {
               >
                 {columns.map((col, colIndex) => (
                   <td key={colIndex} className="px-6 py-4 whitespace-nowrap">
-                    {col.render ? col.render(row[col.accessor], row) : row[col.accessor]}
+                    {col.render ? col.render(row[col.accessor], row) : (row[col.accessor] as React.ReactNode)}
                   </td>
                 ))}
               </tr>
