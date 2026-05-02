@@ -7,24 +7,11 @@ on:
     branches: [main, develop]
 
 jobs:
-  backend-lint:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./backend
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-      - run: npm ci
-      - run: npm run lint
-
   frontend-lint:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./frontend
+        working-directory: ./admin-dashboard
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -70,7 +57,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./frontend
+        working-directory: ./admin-dashboard
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
@@ -78,4 +65,3 @@ jobs:
           node-version: '20'
       - run: npm ci
       - run: npm run build
-
