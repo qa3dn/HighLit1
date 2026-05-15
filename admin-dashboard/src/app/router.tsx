@@ -5,25 +5,24 @@ import  CompaniesPage  from '../features/companies/pages/CompaniesPage';
 import  JobsPage  from '../features/jobs/pages/JobsPage';
 import  MyProjectsPage  from '../features/projects/pages/MyProjectsPage';
 import  Dashboard  from '../features/dashboard/page/Dashboard';
+import NotFoundPage from '../pages/NotFoundPage';
 
-// Note: Import these when you have finished them!
-// import { LoginPage } from '../features/auth/pages/LoginPage';
-// import { ProtectedRoute } from '../routes/ProtectedRoute';
+import { LoginPage } from '../features/auth/pages/LoginPage';
+import { ProtectedRoute } from '../routes/ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <Navigate to="/dashboard" replace />, // Automatically redirect to the dashboard
   },
-  // {
-  //   path: '/login',
-  //   element: <LoginPage />,
-  // },
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
   {
     path: '/dashboard',
     // When your auth system is ready, change this to:
-    // element: <ProtectedRoute><DashboardLayout /></ProtectedRoute>,
-    element: <DashboardLayout />,
+    element: (<ProtectedRoute><DashboardLayout /></ProtectedRoute>),
     children: [
       {
         index: true,
@@ -33,19 +32,33 @@ export const router = createBrowserRouter([
       },
       {
         path: 'users',
-        element: <UsersPage />,
+        element: (<ProtectedRoute allowedRoles={['admin']}>
+          <UsersPage />
+        </ProtectedRoute>),
       },
       {
         path: 'companies',
-        element: <CompaniesPage />,
+        element: (
+        <ProtectedRoute allowedRoles={['admin']}>
+          <CompaniesPage />
+        </ProtectedRoute>
+      ),
       },
       {
         path: 'jobs',
-        element: <JobsPage />,
+        element: (
+        <ProtectedRoute allowedRoles={['company']}>
+          <JobsPage />
+        </ProtectedRoute>
+      ),
       },
       {
         path: 'projects',
-        element: <MyProjectsPage />,
+        element: (
+        <ProtectedRoute allowedRoles={['student']}>
+          <MyProjectsPage />
+        </ProtectedRoute>
+      ),
       },
       {
         path: 'settings',
@@ -57,5 +70,9 @@ export const router = createBrowserRouter([
         ),
       }
     ],
+  },
+  {
+    path: '*',
+    element: <NotFoundPage />,
   },
 ]);
