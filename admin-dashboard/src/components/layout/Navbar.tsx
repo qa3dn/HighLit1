@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useUser } from '../../context/UserContext';
 
 export const Navbar: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const { userName, userEmail, userAvatar } = useUser();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -51,15 +53,19 @@ export const Navbar: React.FC = () => {
             onClick={() => setIsOpen(!isOpen)}
             className="flex items-center gap-3 pr-4 border-r border-border cursor-pointer group focus:outline-none"
           >
-            <div className="w-9 h-9 rounded-full bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-bold text-sm group-hover:shadow-glow transition-all duration-300">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            <div className="w-9 h-9 rounded-full overflow-hidden bg-accent/10 border border-accent/30 flex items-center justify-center text-accent font-bold text-sm group-hover:shadow-glow transition-all duration-300">
+              {userAvatar ? (
+                <img src={userAvatar} alt={userName} className="w-full h-full object-cover" />
+              ) : (
+                userName ? userName.charAt(0).toUpperCase() : 'م'
+              )}
             </div>
             <div className="hidden sm:block text-right">
-              <p className="text-sm font-semibold text-text group-hover:text-accent transition-colors duration-300">
-                {user?.name || 'مستخدم'}
+              <p className="text-sm font-semibold text-text group-hover:text-accent transition-colors duration-300 truncate max-w-32">
+                {userName || 'مستخدم'}
               </p>
-              <p className="text-xs text-text-secondary">
-                {user?.email || 'user@system.com'}
+              <p className="text-xs text-text-secondary truncate max-w-36">
+                {userEmail || 'user@system.com'}
               </p>
             </div>
             <svg className={`w-4 h-4 text-text-secondary transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
