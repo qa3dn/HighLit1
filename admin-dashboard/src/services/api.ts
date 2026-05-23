@@ -1,29 +1,30 @@
 import axios from "axios";
+import { getToken, removeToken } from "./token";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const client = axios.create({
+const api = axios.create({
   baseURL: API_URL,
 });
 
-client.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
+api.interceptors.request.use((config) => {
+  const token = getToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-client.interceptors.response.use(
+api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("user");
-      localStorage.removeItem("token");
+      removeToken();
       window.location.href = "/login";
     }
     return Promise.reject(error);
   },
 );
 
-export default client;
+export default api;

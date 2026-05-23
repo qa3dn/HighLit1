@@ -1,14 +1,19 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
-import  UsersPage  from '../features/users/pages/UsersPage';
-import  CompaniesPage  from '../features/companies/pages/CompaniesPage';
-import  JobsPage  from '../features/jobs/pages/JobsPage';
-import  MyProjectsPage  from '../features/projects/pages/MyProjectsPage';
-import  Dashboard  from '../features/dashboard/page/Dashboard';
+import Users from '../features/users/page/Users';
+import Companies from '../features/companies/page/Companies';
+import Dashboard from '../features/dashboard/page/Dashboard';
 import NotFoundPage from '../pages/NotFoundPage';
 
-import { LoginPage } from '../features/auth/pages/LoginPage';
+import Login from '../features/auth/page/Login';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
+
+import Projects from '../features/projects/page/Projects';
+import Saved from '../features/saved/page/Saved';
+import Jobs from '../features/jobs/page/Jobs';
+import Applicants from '../features/applicants/page/Applicants';
+import Settings from '../features/settings/page/Settings';
+import Profile from '../features/profile/page/Profile';
 
 export const router = createBrowserRouter([
   {
@@ -17,7 +22,7 @@ export const router = createBrowserRouter([
   },
   {
     path: '/login',
-    element: <LoginPage />,
+    element: <Login />,
   },
   {
     path: '/dashboard',
@@ -33,14 +38,14 @@ export const router = createBrowserRouter([
       {
         path: 'users',
         element: (<ProtectedRoute allowedRoles={['admin']}>
-          <UsersPage />
+          <Users />
         </ProtectedRoute>),
       },
       {
         path: 'companies',
         element: (
         <ProtectedRoute allowedRoles={['admin']}>
-          <CompaniesPage />
+          <Companies />
         </ProtectedRoute>
       ),
       },
@@ -48,7 +53,7 @@ export const router = createBrowserRouter([
         path: 'jobs',
         element: (
         <ProtectedRoute allowedRoles={['company']}>
-          <JobsPage />
+          <Jobs />
         </ProtectedRoute>
       ),
       },
@@ -56,18 +61,41 @@ export const router = createBrowserRouter([
         path: 'projects',
         element: (
         <ProtectedRoute allowedRoles={['student']}>
-          <MyProjectsPage />
+          <Projects />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'saved',
+        element: (
+        <ProtectedRoute allowedRoles={['student']}>
+          <Saved />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'applicants',
+        element: (
+        <ProtectedRoute allowedRoles={['company']}>
+          <Applicants />
         </ProtectedRoute>
       ),
       },
       {
         path: 'settings',
         element: (
-          <div className="flex h-[60vh] flex-col items-center justify-center gap-4 animate-fade-in">
-            <h2 className="text-xl text-text">⚙️ Settings</h2>
-            <p className="text-text-secondary">System configuration coming soon.</p>
-          </div>
-        ),
+        <ProtectedRoute>
+          <Settings />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'profile',
+        element: (
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      ),
       }
     ],
   },
