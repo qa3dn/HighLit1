@@ -1,7 +1,7 @@
-import { useProjects } from '../useProjects';
+// import { useProjects } from '../useProjects';
 
 const Projects = () => {
-  const { data, isLoading } = useProjects();
+  // const { data, isLoading } = useProjects();
 
   return (
     <div className="p-6">

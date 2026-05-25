@@ -1,7 +1,7 @@
-import { useSaved } from '../useSaved';
+// import { useSaved } from '../useSaved';
 
 const Saved = () => {
-  const { data, isLoading } = useSaved();
+  // const { data, isLoading } = useSaved();
 
   return (
     <div className="p-6">
