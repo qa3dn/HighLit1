@@ -93,8 +93,8 @@ export const useSettings = () => {
         currentPassword: '',
         newPassword: '',
       }));
-    } catch (err: any) {
-      setError(err.message || 'حدث خطأ أثناء حفظ الإعدادات.');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'حدث خطأ أثناء حفظ الإعدادات.');
     } finally {
       setIsSaving(false);
     }
