@@ -1,4 +1,3 @@
-import React from 'react';
 import { useSaved } from '../useSaved';
 
 const Saved = () => {

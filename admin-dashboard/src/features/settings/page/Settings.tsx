@@ -1,4 +1,3 @@
-import React from 'react';
 import { useSettings } from '../useSettings';
 import {
   Settings as SettingsIcon,
@@ -30,7 +29,7 @@ const Settings: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#090a0f] text-zinc-100 p-6 md:p-10 font-sans selection:bg-emerald-500/30 selection:text-emerald-300" dir="rtl">
       <div className="max-w-4xl mx-auto space-y-8">
-        
+
         {/* Header Section */}
         <div className="flex items-center gap-4 border-b border-zinc-800/40 pb-6">
           <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20 text-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
@@ -59,14 +58,14 @@ const Settings: React.FC = () => {
 
         {/* Settings Form */}
         <form onSubmit={handleSave} className="space-y-6">
-          
+
           {/* 1. General Settings Card */}
           <div className="bg-[#12131a]/90 border border-zinc-800/80 rounded-xl p-6 shadow-xl transition-all duration-300 hover:border-zinc-700/30 backdrop-blur-md">
             <div className="flex items-center gap-3 border-b border-zinc-800 pb-4 mb-6">
               <Building className="w-5 h-5 text-emerald-400" />
               <h2 className="text-lg font-bold text-white">إعدادات النظام الأساسية</h2>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* System Name */}
               <div className="space-y-2">
@@ -175,19 +174,17 @@ const Settings: React.FC = () => {
                     <p className="text-xs text-zinc-400 mt-0.5">توفير طبقة أمان إضافية لحسابك عن طريق إرسال رمز تأكيد</p>
                   </div>
                 </div>
-                
+
                 {/* Modern Direction-Agnostic Toggle Switch */}
                 <button
                   type="button"
                   onClick={() => toggleField('twoFactorEnabled')}
-                  className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer relative focus:outline-none ${
-                    settings.twoFactorEnabled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-zinc-700'
-                  }`}
+                  className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer relative focus:outline-none ${settings.twoFactorEnabled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-zinc-700'
+                    }`}
                 >
                   <span
-                    className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transition-transform duration-300 ${
-                      settings.twoFactorEnabled ? 'translate-x-[-22px]' : 'translate-x-0'
-                    }`}
+                    className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transition-transform duration-300 ${settings.twoFactorEnabled ? 'translate-x-[-22px]' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -217,14 +214,12 @@ const Settings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => toggleField('emailAlerts')}
-                  className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer relative focus:outline-none ${
-                    settings.emailAlerts ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-zinc-700'
-                  }`}
+                  className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer relative focus:outline-none ${settings.emailAlerts ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-zinc-700'
+                    }`}
                 >
                   <span
-                    className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transition-transform duration-300 ${
-                      settings.emailAlerts ? 'translate-x-[-22px]' : 'translate-x-0'
-                    }`}
+                    className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transition-transform duration-300 ${settings.emailAlerts ? 'translate-x-[-22px]' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -244,14 +239,12 @@ const Settings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => toggleField('inAppAlerts')}
-                  className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer relative focus:outline-none ${
-                    settings.inAppAlerts ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-zinc-700'
-                  }`}
+                  className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-300 flex items-center cursor-pointer relative focus:outline-none ${settings.inAppAlerts ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-zinc-700'
+                    }`}
                 >
                   <span
-                    className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transition-transform duration-300 ${
-                      settings.inAppAlerts ? 'translate-x-[-22px]' : 'translate-x-0'
-                    }`}
+                    className={`w-4.5 h-4.5 bg-white rounded-full shadow-md transition-transform duration-300 ${settings.inAppAlerts ? 'translate-x-[-22px]' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -269,7 +262,7 @@ const Settings: React.FC = () => {
               <RotateCcw className="w-4 h-4" />
               <span>إلغاء</span>
             </button>
-            
+
             <button
               type="submit"
               disabled={isSaving}
@@ -288,7 +281,7 @@ const Settings: React.FC = () => {
               )}
             </button>
           </div>
-          
+
         </form>
       </div>
     </div>

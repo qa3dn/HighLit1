@@ -1,4 +1,3 @@
-import React from 'react';
 import { useProjects } from '../useProjects';
 
 const Projects = () => {

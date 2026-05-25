@@ -1,4 +1,3 @@
-import React from 'react';
 
 interface Column {
   header: string;
@@ -27,8 +26,8 @@ export const Table: React.FC<TableProps> = ({ columns, data }) => {
         <tbody className="divide-y divide-border">
           {data.length > 0 ? (
             data.map((row, rowIndex) => (
-              <tr 
-                key={rowIndex} 
+              <tr
+                key={rowIndex}
                 className="hover:bg-gray transition-colors duration-150 animate-fade-in font-sans"
                 style={{ animationDelay: `${rowIndex * 30}ms` }}
               >

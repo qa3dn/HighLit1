@@ -1,8 +1,7 @@
-import React from 'react';
-import { useApplicants } from '../useApplicants';
+// import { useApplicants } from '../useApplicants';
 
 const Applicants = () => {
-  const { data, isLoading } = useApplicants();
+  // const { data, isLoading } = useApplicants();
 
   return (
     <div className="p-6">

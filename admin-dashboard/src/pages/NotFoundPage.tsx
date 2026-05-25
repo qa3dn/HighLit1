@@ -1,4 +1,3 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 
 const NotFoundPage: React.FC = () => {
@@ -12,15 +11,15 @@ const NotFoundPage: React.FC = () => {
             </svg>
           </div>
         </div>
-        
+
         <h1 className="text-6xl font-bold text-accent mb-4">404</h1>
         <h2 className="text-2xl font-bold mb-2">Page Not Found</h2>
         <p className="text-text-secondary mb-8">
-        Sorry, we couldn't find the page you were looking for. The link may be broken or the page may have moved.
+          Sorry, we couldn't find the page you were looking for. The link may be broken or the page may have moved.
         </p>
-        
-        <Link 
-          to="/dashboard" 
+
+        <Link
+          to="/dashboard"
           className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-accent hover:bg-accent-hover text-white rounded-lg transition-colors font-medium shadow-sm w-full"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

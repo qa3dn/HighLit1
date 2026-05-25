@@ -1,8 +1,7 @@
-import React from 'react';
-import { useJobs } from '../useJobs';
+// import { useJobs } from '../useJobs';
 
 const Jobs = () => {
-  const { data, isLoading } = useJobs();
+  // const { data, isLoading } = useJobs();
 
   return (
     <div className="p-6">
