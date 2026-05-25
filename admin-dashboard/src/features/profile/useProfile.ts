@@ -40,6 +40,7 @@ export const useProfile = () => {
 
   // Sync with global user context
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfile((prev) => ({
       ...prev,
       fullName: userName,
@@ -139,7 +140,7 @@ export const useProfile = () => {
       if (profile.fullName.trim().length < 3) {
         throw new Error('الاسم الكامل يجب أن يكون 3 حروف على الأقل.');
       }
-      
+
       const phoneRegex = /^\+?[0-9\s\-()]{7,18}$/;
       if (!phoneRegex.test(profile.phone)) {
         throw new Error('يرجى إدخال رقم هاتف صالح.');
@@ -156,8 +157,8 @@ export const useProfile = () => {
       );
 
       setSaveSuccess(true);
-    } catch (err: any) {
-      setError(err.message || 'حدث خطأ أثناء حفظ الملف الشخصي.');
+    } catch (err: unknown) {
+      setError((err as Error).message || 'حدث خطأ أثناء حفظ الملف الشخصي.');
     } finally {
       setIsSaving(false);
     }

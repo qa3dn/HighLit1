@@ -36,6 +36,7 @@ export const useSettings = () => {
 
   // Sync form field if global systemName changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSettings((prev) => ({
       ...prev,
       systemName,
@@ -73,7 +74,7 @@ export const useSettings = () => {
     try {
       // Simulate network request delay
       await new Promise((resolve) => setTimeout(resolve, 1200));
-      
+
       // Simulate a quick check if passwords match the schema (e.g. if one is filled, both should be filled)
       if (
         (settings.currentPassword || settings.newPassword) &&
@@ -85,7 +86,7 @@ export const useSettings = () => {
       setSaveSuccess(true);
       // Update global context state
       setSystemName(settings.systemName);
-      
+
       // Clear password fields on success
       setSettings((prev) => ({
         ...prev,
