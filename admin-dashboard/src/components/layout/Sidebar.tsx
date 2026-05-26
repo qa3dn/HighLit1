@@ -104,10 +104,10 @@ export const Sidebar: React.FC = () => {
             to={item.path}
             end={item.path === '/dashboard'}
             className={({ isActive }) => `
-              flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-300 font-arabic text-sm font-medium border
+              flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 font-arabic text-sm font-medium border
               ${isActive
-                ? 'bg-accent/10 text-accent border-accent/20 shadow-sm'
-                : 'text-text-secondary hover:bg-gray-dark hover:text-text border-transparent'}
+                ? 'nav-active'
+                : 'text-text-secondary hover:bg-gray-dark hover:text-text border-transparent hover:border-border/50'}
             `}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
