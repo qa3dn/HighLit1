@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { TopBar } from '@/components/rants/TopBar'
@@ -10,109 +10,86 @@ import { RantFeed } from '@/components/rants/RantFeed'
 import { CommunityPulse } from '@/components/rants/CommunityPulse'
 import { CreateRantModal } from '@/components/rants/CreateRantModal'
 import { PageRules } from '@/components/rants/PageRules'
-import { api } from '@/lib/api'
+import { useFeed } from '@/hooks/usePosts'
+import { useCurrentUser } from '@/hooks/useAuth'
+import type { FeedSort } from '@/lib/api/posts'
 
 export default function RantsPage() {
-  const queryClient = useQueryClient()
-  const [sort, setSort] = useState('recent')
+  const router = useRouter()
+  const { data: currentUser } = useCurrentUser()
+  const isAuthenticated = !!currentUser
+
+  const [sort, setSort] = useState<FeedSort>('hot')
   const [selectedTag, setSelectedTag] = useState<string | undefined>()
   const [searchQuery, setSearchQuery] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  const { data: rants, isLoading } = useQuery({
-    queryKey: ['rants', sort, selectedTag],
-    queryFn: async () => {
-      if (selectedTag) {
-        const { data } = await api.get(`/posts/tags/${selectedTag}`)
-        return data
-      }
-      const { data } = await api.get('/posts/rants', {
-        params: { sort },
-      })
-      return data
-    },
+  const feed = useFeed({
+    sort,
+    tag: selectedTag,
+    q: searchQuery || undefined,
+    type: 'RANT',
   })
 
-  const filteredRants = searchQuery
-    ? rants?.filter((rant: any) =>
-        rant.content.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : rants
+  const pages = feed.data?.pages ?? []
+  const posts = pages.flatMap((page) => page.posts)
+  const firstPage = pages[0]
+  const locked = firstPage?.locked ?? false
+  const remainingLocked = firstPage?.remaining_locked ?? 0
 
-  const handlePostCreated = () => {
-    queryClient.invalidateQueries({ queryKey: ['rants'] })
-    queryClient.invalidateQueries({ queryKey: ['tags'] })
-    queryClient.invalidateQueries({ queryKey: ['daily-stats'] })
-  }
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-  }
-
-  const handleFilter = (filters: any) => {
-    // Handle filter logic if needed
-    console.log('Filters:', filters)
+  const handleCreateRant = () => {
+    if (!isAuthenticated) {
+      router.push('/login?next=/rants')
+      return
+    }
+    setShowCreateModal(true)
   }
 
   const handleTagSelect = (tag: string) => {
-    if (selectedTag === tag) {
-      setSelectedTag(undefined)
-    } else {
-      setSelectedTag(tag)
-    }
+    setSelectedTag((current) => (current === tag ? undefined : tag))
   }
 
   return (
     <div className="min-h-screen bg-bg text-text">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        {/* Top Bar */}
         <TopBar
-          onSearch={handleSearch}
-          onFilter={handleFilter}
-          onCreateRant={() => setShowCreateModal(true)}
+          onSearch={setSearchQuery}
+          onFilter={() => {}}
+          onCreateRant={handleCreateRant}
         />
 
-        {/* 3 Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Sidebar - Tags */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <aside className="lg:col-span-3">
-            <TagsSidebar
-              onTagSelect={handleTagSelect}
-              selectedTag={selectedTag}
-            />
+            <TagsSidebar onTagSelect={handleTagSelect} selectedTag={selectedTag} />
           </aside>
 
-          {/* Main Feed */}
           <section className="lg:col-span-6">
-            {isLoading ? (
-              <div className="text-center py-12 text-text-secondary">
-                <p>جاري التحميل...</p>
-              </div>
-            ) : (
-              <RantFeed
-                rants={filteredRants || []}
-                sort={sort}
-                onSortChange={setSort}
-              />
-            )}
-
-            {/* Page Rules */}
+            <RantFeed
+              posts={posts}
+              sort={sort}
+              onSortChange={setSort}
+              isAuthenticated={isAuthenticated}
+              isLoading={feed.isLoading}
+              locked={locked}
+              remainingLocked={remainingLocked}
+              hasMore={!!feed.hasNextPage}
+              isFetchingMore={feed.isFetchingNextPage}
+              onLoadMore={() => feed.fetchNextPage()}
+            />
             <PageRules />
           </section>
 
-          {/* Right Sidebar - Community Pulse */}
           <aside className="lg:col-span-3">
             <CommunityPulse />
           </aside>
         </div>
       </main>
 
-      {/* Create Rant Modal */}
       <CreateRantModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onSuccess={handlePostCreated}
+        onSuccess={() => feed.refetch()}
       />
 
       <Footer />

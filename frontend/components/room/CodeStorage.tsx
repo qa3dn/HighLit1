@@ -275,7 +275,7 @@ function CodeStorageModal({ code, onSave, onClose }: CodeStorageModalProps) {
       language,
       code_body: codeBody,
       description: description || undefined,
-      tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
+      tags: tags ? tags.split(',').map((t: string) => t.trim()) : undefined,
       visibility,
       notes: notes || undefined,
     })

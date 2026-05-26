@@ -11,7 +11,7 @@ const reactions = [
 ]
 
 interface ReactionsBarProps {
-  postId: string
+  postId: number | string
   reactions: any[]
 }
 

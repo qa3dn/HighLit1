@@ -35,28 +35,28 @@ const ranks = [
 
 export function RanksSystem() {
   return (
-    <section className="py-30 bg-gray-light" dir="rtl">
+    <section className="bg-gray-light py-16 sm:py-24 lg:py-30" dir="rtl">
       <div className="container-custom">
-        <h2 className="text-display-sm font-bold text-center mb-4 text-text">
+        <h2 className="mb-4 text-center text-2xl font-bold text-text sm:text-3xl md:text-display-sm">
           رتب المجتمع
         </h2>
         <div className="text-center mb-12 font-mono text-accent text-sm" dir="ltr">
           <span className="glow-accent">const ranks = {'{'}</span>
         </div>
         <div className="max-w-4xl mx-auto">
-          <div className="bg-gray-light rounded-2xl border border-gray-dark p-8">
+          <div className="rounded-2xl border border-gray-dark bg-gray-light p-4 sm:p-6 md:p-8">
             <div className="space-y-4">
               {ranks.map((rank, index) => (
                 <div
                   key={index}
-                  className="flex items-center gap-6 p-4 rounded-xl border border-gray-dark hover:border-accent hover:bg-gray transition-all duration-200"
+                  className="flex flex-col gap-3 rounded-xl border border-gray-dark p-4 transition-all duration-200 hover:border-accent hover:bg-gray sm:flex-row sm:items-center sm:gap-6"
                 >
                   <div className="flex-shrink-0 w-12 h-12 rounded-full bg-accent/20 border border-accent flex items-center justify-center text-accent font-bold text-lg font-mono glow-accent">
                     {index + 1}
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold text-text">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                      <h3 className="text-lg font-semibold text-text sm:text-xl">
                         {rank.name}
                       </h3>
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-accent/20 text-accent border border-accent/50 font-mono">

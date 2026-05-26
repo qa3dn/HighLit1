@@ -27,6 +27,9 @@ import {
   SavedItem,
 } from '@/lib/api/room'
 
+// Re-export domain types so room components can import them from the hook.
+export type { CodeStorage, DevNote, Idea, SavedItem } from '@/lib/api/room'
+
 // Room Data
 export function useRoomData(userId: string, isOwnProfile: boolean = false) {
   return useQuery({

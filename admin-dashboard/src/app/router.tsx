@@ -4,7 +4,11 @@ import  UsersPage  from '../features/users/pages/UsersPage';
 import  CompaniesPage  from '../features/companies/pages/CompaniesPage';
 import  JobsPage  from '../features/jobs/pages/JobsPage';
 import  MyProjectsPage  from '../features/projects/pages/MyProjectsPage';
+import ProjectsReviewPage from '../features/projects/pages/ProjectsReviewPage';
+import ContentModerationPage from '../features/moderation/pages/ContentModerationPage';
+import SubscriptionsPage from '../features/subscriptions/pages/SubscriptionsPage';
 import  Dashboard  from '../features/dashboard/page/Dashboard';
+import ActivityPage from '../features/activity/pages/ActivityPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 import { LoginPage } from '../features/auth/pages/LoginPage';
@@ -47,16 +51,48 @@ export const router = createBrowserRouter([
       {
         path: 'jobs',
         element: (
-        <ProtectedRoute allowedRoles={['company']}>
+        <ProtectedRoute allowedRoles={['admin', 'company']}>
           <JobsPage />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'activity',
+        element: (
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ActivityPage />
         </ProtectedRoute>
       ),
       },
       {
         path: 'projects',
         element: (
-        <ProtectedRoute allowedRoles={['student']}>
+        <ProtectedRoute allowedRoles={['student', 'user']}>
           <MyProjectsPage />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'projects/review',
+        element: (
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ProjectsReviewPage />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'moderation',
+        element: (
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ContentModerationPage />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'subscriptions',
+        element: (
+        <ProtectedRoute allowedRoles={['admin']}>
+          <SubscriptionsPage />
         </ProtectedRoute>
       ),
       },

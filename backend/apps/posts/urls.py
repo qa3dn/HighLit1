@@ -4,6 +4,7 @@ from .views import (
     DailyStatsView,
     PostCommentView,
     PostDetailView,
+    PostFeedView,
     PostListCreateView,
     PostReactionView,
     PostsByTagView,
@@ -14,6 +15,7 @@ from .views import (
 
 urlpatterns = [
     path("", PostListCreateView.as_view()),
+    path("feed", PostFeedView.as_view()),
     path("rants", RantsView.as_view()),
     path("trending", TrendingView.as_view()),
     path("tags", TagsView.as_view()),

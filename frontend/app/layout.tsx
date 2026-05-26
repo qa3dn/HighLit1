@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Fira_Code, IBM_Plex_Sans_Arabic } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
@@ -19,6 +19,12 @@ const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
 export const metadata: Metadata = {
   title: 'HighLit - كود وفضفض',
   description: 'المنصة الرقمية للمبرمجين الأردنيين - كود وفضفض',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({

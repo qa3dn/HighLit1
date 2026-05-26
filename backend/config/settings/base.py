@@ -28,11 +28,17 @@ INSTALLED_APPS = [
     "apps.posts",
     "apps.moderation",
     "apps.uploads",
+    "apps.student_projects",
     "apps.realtime",
+    "apps.companies",
+    "apps.audit",
+    "apps.code_projects",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "common.middleware.RequestContextMiddleware",
+    "common.middleware.ApiTrailingSlashMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -101,10 +107,25 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
+    # Default-deny: endpoints must opt into public access explicitly with
+    # AllowAny. This is the inverse of the old AllowAny default.
     "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.AllowAny",
+        "rest_framework.permissions.IsAuthenticated",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Consistent error envelope; never leaks tracebacks/str(e) to clients.
+    "EXCEPTION_HANDLER": "common.exceptions.exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": (
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ),
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.getenv("THROTTLE_ANON", "60/min"),
+        "user": os.getenv("THROTTLE_USER", "240/min"),
+        "auth": os.getenv("THROTTLE_AUTH", "10/min"),
+        "post": os.getenv("THROTTLE_POST", "20/min"),
+    },
 }
 
 ACCESS_MINUTES = int(os.getenv("ACCESS_TOKEN_MINUTES", "60"))

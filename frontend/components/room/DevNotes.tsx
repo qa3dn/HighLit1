@@ -192,7 +192,7 @@ function DevNoteModal({ note, onSave, onClose }: DevNoteModalProps) {
     onSave({
       title,
       content,
-      tags: tags ? tags.split(',').map((t) => t.trim()) : undefined,
+      tags: tags ? tags.split(',').map((t: string) => t.trim()) : undefined,
     })
   }
 

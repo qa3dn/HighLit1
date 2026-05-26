@@ -37,9 +37,12 @@ export function LoginForm() {
         password,
       })
 
-      // Save token
+      // Save tokens (access for requests, refresh for silent renewal)
       localStorage.setItem('token', data.access_token)
-      
+      if (data.refresh_token) {
+        localStorage.setItem('refresh_token', data.refresh_token)
+      }
+
       // Invalidate queries to refresh user data
       await queryClient.invalidateQueries({ queryKey: ['current-user'] })
       

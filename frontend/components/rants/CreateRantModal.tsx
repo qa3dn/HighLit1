@@ -8,9 +8,13 @@ import { CodeEditor } from './CodeEditor'
 import { ImageUploader } from './ImageUploader'
 import { GistLinker } from './GistLinker'
 import { playClickSound } from '@/lib/audio'
-import { api } from '@/lib/api'
-import { useQuery } from '@tanstack/react-query'
+import { createPost } from '@/lib/api/posts'
+import { useTags } from '@/hooks/useTags'
+import { SUGGESTED_TAGS } from '@/lib/rants/tags'
+import { useRouter } from 'next/navigation'
 import { Code, Image, Github, FileText, Lock } from 'lucide-react'
+
+const MAX_CONTENT_LENGTH = 5000
 
 interface CreateRantModalProps {
   isOpen: boolean
@@ -37,13 +41,13 @@ export function CreateRantModal({
     'text',
   )
 
-  const { data: tags } = useQuery({
-    queryKey: ['tags'],
-    queryFn: async () => {
-      const { data } = await api.get('/posts/tags')
-      return data
-    },
-  })
+  const router = useRouter()
+
+  // Suggestions = curated pain-points first, then any other popular tags.
+  const { data: popularTags = [] } = useTags()
+  const suggestedTags = Array.from(
+    new Set([...SUGGESTED_TAGS, ...popularTags.map((t) => t.tag)]),
+  ).slice(0, 10)
 
   // Extract hashtags from content
   useEffect(() => {
@@ -67,24 +71,30 @@ export function CreateRantModal({
       return
     }
 
+    // Combine free text with the optional code block and images (markdown).
+    let finalContent = content.trim()
+    if (codeContent.trim()) {
+      finalContent += `\n\n\`\`\`${codeLanguage}\n${codeContent}\n\`\`\``
+    }
+    if (images.length > 0) {
+      images.forEach((img) => {
+        finalContent += `\n\n![Image](${img})`
+      })
+    }
+
+    if (!finalContent) {
+      setModerationWarning('لا يمكن نشر فضفضة فارغة.')
+      return
+    }
+    if (finalContent.length > MAX_CONTENT_LENGTH) {
+      setModerationWarning(`المحتوى يتجاوز الحد الأقصى (${MAX_CONTENT_LENGTH} حرف).`)
+      return
+    }
+
     setIsLoading(true)
-
     try {
-      // Combine content with code if exists
-      let finalContent = content
-      if (codeContent) {
-        finalContent += `\n\n\`\`\`${codeLanguage}\n${codeContent}\n\`\`\``
-      }
-
-      // Add images as markdown
-      if (images.length > 0) {
-        images.forEach((img) => {
-          finalContent += `\n\n![Image](${img})`
-        })
-      }
-
       const tags = selectedTag ? [selectedTag] : []
-      await api.post('/posts', {
+      await createPost({
         content: finalContent,
         type: 'RANT',
         is_anonymous: isAnonymous,
@@ -99,10 +109,16 @@ export function CreateRantModal({
       onSuccess()
       onClose()
     } catch (error: any) {
-      if (error.response?.status === 400) {
-        setModerationWarning('المحتوى يحتوي على لغة غير مناسبة')
+      const status = error?.response?.status
+      if (status === 401) {
+        router.push('/login?next=/rants')
+      } else if (status === 429) {
+        setModerationWarning('أنشأت منشورات كثيرة بسرعة. انتظر دقيقة وحاول مجدداً.')
+      } else if (status === 400) {
+        const detail = error?.response?.data?.content?.[0] || error?.response?.data?.detail
+        setModerationWarning(detail || 'تحقّق من محتوى المنشور.')
       } else {
-        console.error('Failed to create post:', error)
+        setModerationWarning('تعذّر نشر الفضفضة. حاول مرة أخرى.')
       }
     } finally {
       setIsLoading(false)
@@ -253,34 +269,35 @@ export function CreateRantModal({
           {/* Tag Selection */}
           <div className="mb-4 flex-shrink-0">
             <label className="block text-text mb-2 font-mono text-sm">
-              الوسم
+              وين الوجع؟ (اختر وسماً أو اكتب وسمك)
             </label>
-            {tags && Array.isArray(tags) && tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-2">
-                {tags.slice(0, 5).map((tag: any) => (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {suggestedTags.map((tag) => {
+                const isActive = selectedTag === tag
+                return (
                   <button
-                    key={tag.slug || tag.name}
+                    key={tag}
                     type="button"
                     onClick={() => {
                       playClickSound()
-                      setSelectedTag(tag.slug || tag.name)
+                      setSelectedTag(isActive ? '' : tag)
                     }}
-                    className={`px-3 py-1 rounded-lg text-sm transition-all font-mono ${
-                      selectedTag === (tag.slug || tag.name)
+                    className={`rounded-lg px-3 py-1 font-mono text-sm transition-all ${
+                      isActive
                         ? 'bg-accent text-bg'
-                        : 'bg-gray-light text-text border border-gray-dark hover:border-accent'
+                        : 'border border-gray-dark bg-gray-light text-text hover:border-accent'
                     }`}
                   >
-                    #{tag.name}
+                    #{tag}
                   </button>
-                ))}
-              </div>
-            )}
+                )
+              })}
+            </div>
             <Input
               type="text"
               value={selectedTag}
-              onChange={(e) => setSelectedTag(e.target.value)}
-              placeholder="أو اكتب وسم جديد"
+              onChange={(e) => setSelectedTag(e.target.value.replace(/^#/, ''))}
+              placeholder="أو اكتب وسماً جديداً"
               variant="terminal"
               className="w-full"
             />

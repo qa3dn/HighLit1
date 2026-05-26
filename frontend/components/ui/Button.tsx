@@ -3,19 +3,13 @@ import { clsx } from 'clsx'
 import { playClickSound } from '@/lib/audio'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline'
+  variant?: 'primary' | 'secondary' | 'outline' | 'terminal'
   size?: 'sm' | 'md' | 'lg'
   asChild?: boolean
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', onClick, asChild, ...props }, ref) => {
-    // #region agent log
-    if (typeof window !== 'undefined' && asChild !== undefined) {
-      fetch('http://127.0.0.1:7243/ingest/41118668-9866-475f-aade-6ee9bcc31573',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Button.tsx:12',message:'asChild prop detected - filtering out',data:{asChild},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-    }
-    // #endregion
-    
     const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
       playClickSound()
       onClick?.(e)
@@ -42,6 +36,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             // Outline variant
             'bg-transparent border-2 border-accent text-accent hover:bg-accent hover:text-bg':
               variant === 'outline',
+            // Terminal variant - monospace accent button used across the
+            // terminal-styled surfaces (auth, jobs, code viewer).
+            'bg-transparent border border-accent text-accent font-mono hover:bg-accent hover:text-bg':
+              variant === 'terminal',
             // Sizes
             'px-4 py-2 text-sm': size === 'sm',
             'px-6 py-3 text-base': size === 'md',

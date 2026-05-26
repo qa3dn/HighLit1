@@ -7,18 +7,17 @@ import { formatDistanceToNow } from 'date-fns'
 import { ar } from 'date-fns/locale'
 
 interface Comment {
-  id: string
+  id: number | string
   content: string
   created_at: string
-  user: {
+  author: {
     username: string
     avatar_url?: string
   }
-  replies?: Comment[]
 }
 
 interface CommentSectionProps {
-  postId: string
+  postId: number | string
   comments: Comment[]
 }
 
@@ -70,15 +69,13 @@ export function CommentSection({ postId, comments: initialComments }: CommentSec
         {comments && comments.length > 0 ? (
           comments.map((comment) => (
             <div key={comment.id} className="flex gap-3">
-              <img
-                src={comment.user.avatar_url || '/default-avatar.png'}
-                alt={comment.user.username}
-                className="w-8 h-8 rounded-full border border-gray-dark flex-shrink-0"
-              />
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border border-gray-dark bg-gray-light font-mono text-xs text-accent">
+                {comment.author.username.charAt(0).toUpperCase()}
+              </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="font-semibold text-sm text-text">
-                    {comment.user.username}
+                    {comment.author.username}
                   </span>
                   <span className="text-text-secondary text-xs">
                     {formatDistanceToNow(new Date(comment.created_at), {

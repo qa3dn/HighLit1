@@ -28,17 +28,17 @@ export function Hero() {
   }, [])
 
   return (
-    <section className="min-h-screen flex items-center justify-center bg-bg py-30 relative overflow-hidden" dir="rtl">
+    <section className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-bg px-4 py-20 sm:px-6 sm:py-28 lg:py-30" dir="rtl">
       {/* Background Effects */}
       <div className="absolute inset-0 opacity-5">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
       </div>
 
-      <div className="container mx-auto px-4 text-center relative z-10">
+      <div className="relative z-10 mx-auto w-full max-w-5xl text-center">
         {/* Technical Accent */}
         <div 
-          className={`mb-8 font-mono text-accent text-2xl md:text-3xl transition-all duration-1000 ${
+          className={`mb-4 font-mono text-accent text-xl transition-all duration-1000 sm:mb-6 sm:text-2xl md:text-3xl ${
             showPrompt ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-10'
           }`}
           dir="ltr"
@@ -48,11 +48,11 @@ export function Hero() {
 
         {/* Main Title */}
         <div 
-          className={`mb-12 transition-all duration-1000 ${
+          className={`mb-6 transition-all duration-1000 sm:mb-10 ${
             showTitle ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >
-          <h1 className="text-7xl md:text-9xl lg:text-[12rem] font-bold text-text mb-8 leading-none tracking-tight">
+          <h1 className="mb-4 text-5xl font-bold leading-none tracking-tight text-text sm:mb-6 sm:text-6xl md:text-7xl lg:text-8xl">
             <span className="bg-gradient-to-r from-text via-accent to-text bg-clip-text text-transparent animate-gradient">
               HighLit
             </span>
@@ -61,22 +61,22 @@ export function Hero() {
 
         {/* Subtitle */}
         <div 
-          className={`mb-10 transition-all duration-1000 ${
+          className={`mb-6 transition-all duration-1000 sm:mb-8 ${
             showSubtitle ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >
-          <h2 className="text-3xl md:text-5xl lg:text-6xl text-text font-medium mb-8 leading-tight">
+          <h2 className="mb-4 text-xl font-medium leading-snug text-text sm:mb-6 sm:text-3xl md:text-4xl lg:text-5xl">
             هون الكود بحكي… وإحنا منسمع
           </h2>
         </div>
 
         {/* Description */}
         <div 
-          className={`mb-16 transition-all duration-1000 ${
+          className={`mb-10 transition-all duration-1000 sm:mb-14 ${
             showDescription ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
           }`}
         >
-          <p className="text-xl md:text-2xl lg:text-3xl text-text max-w-4xl mx-auto leading-relaxed">
+          <p className="mx-auto max-w-3xl text-base leading-relaxed text-text sm:text-lg md:text-xl lg:text-2xl">
             مجتمع للمبرمجين بدمج بين النقاش التقني، ومشاركة الكود، والفضفضة المهنية — بلغة منفهمها.
           </p>
         </div>
@@ -90,12 +90,12 @@ export function Hero() {
           <Link
             href="/rants"
             onClick={playClickSound}
-            className="group font-mono text-accent text-2xl md:text-3xl lg:text-4xl hover:text-accent transition-all cursor-pointer inline-flex items-center gap-4 hover:scale-105 transform duration-300"
+            className="group inline-flex cursor-pointer items-center gap-2 font-mono text-lg text-accent transition-all duration-300 hover:scale-105 sm:gap-3 sm:text-2xl md:text-3xl"
             dir="rtl"
           >
-            <span className="text-accent group-hover:glow-accent transition-all text-3xl md:text-4xl lg:text-5xl">&gt;</span>
-            <span className="text-text group-hover:text-accent transition-colors font-semibold">بلش فضفضة</span>
-            <span className="text-accent animate-pulse cursor-blink text-3xl md:text-4xl lg:text-5xl">_</span>
+            <span className="text-2xl text-accent transition-all group-hover:glow-accent sm:text-3xl">&gt;</span>
+            <span className="font-semibold text-text transition-colors group-hover:text-accent">بلش فضفضة</span>
+            <span className="cursor-blink animate-pulse text-2xl text-accent sm:text-3xl">_</span>
           </Link>
         </div>
       </div>

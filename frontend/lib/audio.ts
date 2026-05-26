@@ -79,69 +79,45 @@ class AudioManager {
   }
 
   async play(name: string) {
-    // #region agent log
-    fetch('http://127.0.0.1:7243/ingest/41118668-9866-475f-aade-6ee9bcc31573',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audio.ts:60',message:'play() called',data:{name,enabled:this.enabled,failed:this.failedSounds.has(name),checking:this.checkingSounds.has(name)},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
-    
     if (!this.enabled) return
-    
+
     // Skip sounds that have previously failed to load
-    if (this.failedSounds.has(name)) {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/41118668-9866-475f-aade-6ee9bcc31573',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audio.ts:68',message:'Skipping failed sound',data:{name},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      return
-    }
-    
+    if (this.failedSounds.has(name)) return
+
     // Skip if already checking this sound
-    if (this.checkingSounds.has(name)) {
-      return
-    }
-    
+    if (this.checkingSounds.has(name)) return
+
     // Lazy load: only create Audio element when needed
-    let sound = this.sounds.get(name)
+    let sound: HTMLAudioElement | null | undefined = this.sounds.get(name)
     if (!sound) {
       const path = this.soundPaths.get(name)
       if (!path) return // Unknown sound name
-      
+
       // Check if file exists before creating Audio element
       this.checkingSounds.add(name)
       const exists = await this.checkSoundExists(path)
       this.checkingSounds.delete(name)
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/41118668-9866-475f-aade-6ee9bcc31573',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audio.ts:82',message:'File existence check',data:{name,path,exists},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+
       if (!exists) {
-        // File doesn't exist - mark as failed and skip
         this.failedSounds.add(name)
         return
       }
-      
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/41118668-9866-475f-aade-6ee9bcc31573',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audio.ts:90',message:'Creating new Audio element',data:{name,path},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
-      
+
       sound = this.loadSound(name, path)
       if (!sound) {
         this.failedSounds.add(name)
-        return // Failed to create audio element
+        return
       }
-      
+
       this.sounds.set(name, sound)
     }
-    
-    // Try to play, but handle errors gracefully
+
     sound.currentTime = 0
     sound.volume = this.volume
-    
-    sound.play().catch((error) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7243/ingest/41118668-9866-475f-aade-6ee9bcc31573',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'audio.ts:105',message:'play() error caught',data:{name,errorName:error.name,errorMessage:error.message},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix-v2',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      
-      // Mark sound as failed to prevent future attempts
+
+    sound.play().catch(() => {
+      // Autoplay can be blocked or the file can disappear; mark failed so we
+      // don't retry on every interaction.
       this.failedSounds.add(name)
       this.sounds.delete(name)
       this.checkingSounds.delete(name)

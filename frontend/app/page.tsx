@@ -11,7 +11,7 @@ import { FinalCTA } from '@/components/landing/FinalCTA'
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen overflow-x-hidden bg-bg">
       <Header />
       <main>
         <Hero />

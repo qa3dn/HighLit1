@@ -14,7 +14,7 @@ const sections = [
   {
     title: 'فرجينا شغلك',
     path: '/code',
-    description: 'استعرض كودك، خذ مراجعة، أو شاركنا حلك العبقري.',
+    description: 'شارك مشاريعك كصور، فيديو، أو GitHub مع تفاصيل جامعتك وتخصصك للفلترة والاكتشاف.',
     code: '/code',
     color: 'from-purple-500 to-pink-500',
   },
@@ -36,9 +36,9 @@ const sections = [
 
 export function PlatformSections() {
   return (
-    <section id="platform-sections" className="py-30 bg-gray-light" dir="rtl">
+    <section id="platform-sections" className="bg-gray-light py-16 sm:py-24 lg:py-30" dir="rtl">
       <div className="container-custom">
-        <h2 className="text-display-sm font-bold text-center mb-4 text-text">
+        <h2 className="mb-4 text-center text-2xl font-bold text-text sm:text-3xl md:text-display-sm">
           شو بتلاقي داخل HighLit؟
         </h2>
         <div className="text-center mb-12 font-mono text-accent text-sm" dir="ltr">

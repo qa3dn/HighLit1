@@ -7,12 +7,14 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { IdentityHeader } from '@/components/room/IdentityHeader'
 import { RoomNavigation, RoomSection } from '@/components/room/RoomNavigation'
-import { CodeStorage } from '@/components/room/CodeStorage'
+import { CodeProjects } from '@/components/profile/CodeProjects'
 import { DevNotes } from '@/components/room/DevNotes'
 import { Ideas } from '@/components/room/Ideas'
 import { MyRants } from '@/components/room/MyRants'
 import { SavedItems } from '@/components/room/SavedItems'
 import { QuickControls } from '@/components/room/QuickControls'
+import { ProfileSettings } from '@/components/profile/ProfileSettings'
+import { PublicProfile } from '@/components/profile/PublicProfile'
 import { api } from '@/lib/api'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { useRoomData } from '@/hooks/useRoom'
@@ -63,7 +65,7 @@ export default function ProfilePage() {
       if (user.role === 'ADMIN') {
         router.replace(`/profile/admin/${userId === 'me' ? 'me' : user.id}`)
       } else if (user.role === 'COMPANY') {
-        router.replace(`/profile/company/${userId === 'me' ? 'me' : user.id}`)
+        router.replace('/company')
       }
     }
   }, [isMounted, user, isOwnProfile, userId, router])
@@ -178,7 +180,7 @@ export default function ProfilePage() {
   const renderSection = () => {
     switch (activeSection) {
       case 'code':
-        return <CodeStorage userId={user.id} isOwnProfile={isOwnProfile} />
+        return <CodeProjects isOwnProfile={isOwnProfile} />
       case 'notes':
         return <DevNotes isOwnProfile={isOwnProfile} />
       case 'ideas':
@@ -188,14 +190,23 @@ export default function ProfilePage() {
       case 'saved':
         return <SavedItems isOwnProfile={isOwnProfile} />
       case 'settings':
-        return (
-          <div className="text-text-secondary text-center py-12 font-mono">
-            <p>إعدادات الغرفة قريباً...</p>
-          </div>
-        )
+        return <ProfileSettings />
       default:
-        return <CodeStorage userId={user.id} isOwnProfile={isOwnProfile} />
+        return <CodeProjects isOwnProfile={isOwnProfile} />
     }
+  }
+
+  // Viewing someone else's profile → the public, social identity page.
+  if (!isOwnProfile) {
+    return (
+      <div className="min-h-screen bg-bg text-text">
+        <Header />
+        <main className="relative z-10">
+          <PublicProfile userId={user.id} />
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   return (

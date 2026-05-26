@@ -27,9 +27,9 @@ const reasons = [
 
 export function WhyHighLit() {
   return (
-    <section className="py-30 bg-bg" dir="rtl">
+    <section className="bg-bg py-16 sm:py-24 lg:py-30" dir="rtl">
       <div className="container-custom">
-        <h2 className="text-display-sm font-bold text-center mb-4 text-text">
+        <h2 className="mb-4 text-center text-2xl font-bold text-text sm:text-3xl md:text-display-sm">
           ليش HighLit؟
         </h2>
         <div className="text-center mb-12 font-mono text-accent text-sm" dir="ltr">

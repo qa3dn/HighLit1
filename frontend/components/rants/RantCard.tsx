@@ -1,168 +1,171 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { ar } from 'date-fns/locale'
-import { Card } from '../ui/Card'
-import { ReactionsBar } from './ReactionsBar'
-import { CommentSection } from '../posts/CommentSection'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism'
-import { Copy, Check } from 'lucide-react'
+import { MessageSquare, Share2, Check } from 'lucide-react'
+import { Card } from '../ui/Card'
+import { CommentThread } from './CommentThread'
+import { ReactionsBar } from './ReactionsBar'
 import { playClickSound } from '@/lib/audio'
+import type { Post } from '@/lib/api/posts'
 
 interface RantCardProps {
-  post: {
-    id: string
-    content: string
-    is_anonymous: boolean
-    created_at: string
-    user?: {
-      username: string
-      avatar_url?: string
-    }
-    tags?: Array<{ name: string; slug: string }>
-    reactions?: any[]
-    comments?: any[]
-  }
+  post: Post
+  isAuthenticated: boolean
 }
 
-const anonymousNames = [
-  'مكافح كود',
-  'مبرمج مكافح',
-  'مطور متعب',
-  'كود واريور',
-  'باغ هانتر',
-]
+const ANON_NAMES = ['مكافح كود', 'مبرمج متعب', 'كود واريور', 'باغ هنتر', 'سنيور مجهول']
+const ANON_AVATARS = ['👤', '👨‍💻', '👩‍💻', '🧑‍💻', '🤖']
 
-const getRandomName = (id: string) => {
-  const index = parseInt(id.substring(0, 2), 16) % anonymousNames.length
-  return anonymousNames[index]
+function pickByIndex<T>(list: T[], seed: number): T {
+  return list[seed % list.length]
 }
 
-const getRandomAvatar = (id: string) => {
-  const avatars = ['👤', '👨‍💻', '👩‍💻', '🧑‍💻', '🤖']
-  const index = parseInt(id.substring(2, 4), 16) % avatars.length
-  return avatars[index]
+function HashtagText({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {Array.isArray(children)
+        ? children.map((child, i) =>
+            typeof child === 'string' ? <Highlighted key={i} text={child} /> : child,
+          )
+        : typeof children === 'string'
+          ? <Highlighted text={children} />
+          : children}
+    </>
+  )
 }
 
-export function RantCard({ post }: RantCardProps) {
+function Highlighted({ text }: { text: string }) {
+  // '#' followed by any run of non-space, non-'#' chars highlights Arabic and
+  // Latin tags without the Unicode regex flag (unavailable under es5 target).
+  const parts = text.split(/(#[^\s#]+)/)
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('#') ? (
+          <span key={i} className="font-medium text-accent">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  )
+}
+
+export function RantCard({ post, isAuthenticated }: RantCardProps) {
   const [showComments, setShowComments] = useState(false)
-  const [copiedCode, setCopiedCode] = useState<string | null>(null)
-  const displayName = post.is_anonymous
-    ? getRandomName(post.id)
-    : post.user?.username || 'مجهول'
-  const avatar = post.is_anonymous ? getRandomAvatar(post.id) : null
-  const primaryTag = post.tags && post.tags.length > 0 ? post.tags[0] : null
+  const [copied, setCopied] = useState(false)
 
-  const handleCopyCode = (code: string, index: number) => {
+  const displayName = post.is_anonymous
+    ? pickByIndex(ANON_NAMES, post.id)
+    : post.author?.username ?? 'مستخدم'
+  const avatar = post.is_anonymous ? pickByIndex(ANON_AVATARS, post.id) : null
+
+  const handleShare = async () => {
     playClickSound()
-    navigator.clipboard.writeText(code)
-    setCopiedCode(`${index}`)
-    setTimeout(() => setCopiedCode(null), 2000)
+    try {
+      await navigator.clipboard.writeText(post.content)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard can be blocked (insecure context / permissions); ignore.
+    }
+  }
+
+  const handleToggleComments = () => {
+    playClickSound()
+    setShowComments((open) => !open)
   }
 
   return (
-    <Card className="mb-6 hover:border-accent/50 transition-all border-gray-dark" dir="rtl">
+    <Card className="mb-4 border-gray-dark transition-colors hover:border-accent/40" dir="rtl">
       {/* Header */}
-      <div className="flex items-start gap-4 mb-4">
-        {post.is_anonymous ? (
-          <div className="w-12 h-12 rounded-full bg-gray-light border border-gray-dark flex items-center justify-center text-2xl flex-shrink-0 font-mono">
-            {avatar}
-          </div>
-        ) : (
-          <img
-            src={post.user?.avatar_url || '/default-avatar.png'}
-            alt={post.user?.username}
-            className="w-12 h-12 rounded-full border border-gray-dark flex-shrink-0"
-          />
-        )}
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-text font-mono">{displayName}</span>
-            {primaryTag && (
-              <span className="text-xs px-2 py-1 rounded bg-accent/20 text-accent border border-accent/50 font-mono">
-                #{primaryTag.name}
+      <div className="mb-3 flex items-center gap-3">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-gray-dark bg-gray-light text-lg">
+          {avatar ?? (
+            <span className="font-mono text-sm text-accent">{displayName.charAt(0).toUpperCase()}</span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            {post.is_anonymous ? (
+              <span className="truncate font-semibold text-text">{displayName}</span>
+            ) : (
+              <Link
+                href={`/profile/${post.user_id}`}
+                className="truncate font-semibold text-text transition-colors hover:text-accent hover:underline"
+              >
+                {displayName}
+              </Link>
+            )}
+            {!post.is_anonymous && post.author?.rank && (
+              <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-accent">
+                {post.author.rank}
+              </span>
+            )}
+            {post.is_anonymous && (
+              <span className="rounded border border-gray-dark px-1.5 py-0.5 font-mono text-[10px] text-text-secondary">
+                مجهول
               </span>
             )}
           </div>
-          <span className="text-text-secondary text-sm font-mono">
-            {formatDistanceToNow(new Date(post.created_at), {
-              addSuffix: true,
-              locale: ar,
-            })}
+          <span className="font-mono text-xs text-text-secondary">
+            {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ar })}
           </span>
         </div>
       </div>
 
+      {/* Title */}
+      {post.title && <h3 className="mb-2 text-lg font-bold text-text">{post.title}</h3>}
+
       {/* Content */}
-      <div className="mb-4">
+      <div className="mb-3 leading-relaxed text-text">
         <ReactMarkdown
           components={{
             p: ({ children }) => (
-              <p className="mb-2 text-text leading-relaxed">{children}</p>
+              <p className="mb-2">
+                <HashtagText>{children}</HashtagText>
+              </p>
             ),
-            code: ({ node, inline, className, children, ...props }: any) => {
+            code: ({ inline, className, children, ...props }: any) => {
               const match = /language-(\w+)/.exec(className || '')
               const codeString = String(children).replace(/\n$/, '')
-              const codeIndex = Math.random().toString(36).substring(7)
-
               return !inline && match ? (
-                <div className="relative my-4 border border-gray-dark rounded-lg overflow-hidden">
-                  <div className="flex items-center justify-between bg-gray-light px-4 py-2 border-b border-gray-dark">
-                    <span className="text-xs text-text-secondary font-mono">
-                      {match[1]}
-                    </span>
-                    <button
-                      onClick={() => handleCopyCode(codeString, codeIndex as any)}
-                      className="p-1 hover:bg-gray rounded transition-colors"
-                    >
-                      {copiedCode === codeIndex ? (
-                        <Check className="w-4 h-4 text-accent" />
-                      ) : (
-                        <Copy className="w-4 h-4 text-text-secondary" />
-                      )}
-                    </button>
+                <div className="my-3 overflow-hidden rounded-lg border border-gray-dark">
+                  <div className="border-b border-gray-dark bg-gray-light px-3 py-1.5 font-mono text-xs text-text-secondary">
+                    {match[1]}
                   </div>
                   <SyntaxHighlighter
                     language={match[1]}
                     style={vscDarkPlus}
-                    customStyle={{
-                      margin: 0,
-                      padding: '1rem',
-                      background: '#1a1a1a',
-                    }}
+                    customStyle={{ margin: 0, padding: '1rem', background: '#1a1a1a' }}
                     dir="ltr"
                   >
                     {codeString}
                   </SyntaxHighlighter>
                 </div>
               ) : (
-                <code
-                  className="bg-gray-light px-2 py-1 rounded text-accent font-mono text-sm border border-gray-dark"
-                  {...props}
-                >
+                <code className="rounded border border-gray-dark bg-gray-light px-1.5 py-0.5 font-mono text-sm text-accent" {...props}>
                   {children}
                 </code>
               )
             },
             img: ({ src, alt }) => (
-              <div className="my-4 border border-gray-dark rounded-lg overflow-hidden">
-                <img
-                  src={src}
-                  alt={alt}
-                  className="w-full h-auto max-h-96 object-contain bg-gray-light"
-                />
-              </div>
+              <img
+                src={src as string}
+                alt={alt ?? ''}
+                className="my-3 max-h-96 w-full rounded-lg border border-gray-dark object-contain"
+              />
             ),
             a: ({ href, children }) => (
-              <a
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline font-mono"
-              >
+              <a href={href} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
                 {children}
               </a>
             ),
@@ -172,35 +175,55 @@ export function RantCard({ post }: RantCardProps) {
         </ReactMarkdown>
       </div>
 
-      {/* Reactions */}
-      <ReactionsBar
-        postId={post.id}
-        reactions={post.reactions || []}
-        onReactionUpdate={() => {
-          // Refresh post data if needed
-        }}
-      />
+      {/* Tags */}
+      {post.tags.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {post.tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full border border-gray-dark bg-gray-light px-2.5 py-0.5 font-mono text-xs text-accent"
+            >
+              #{tag}
+            </span>
+          ))}
+        </div>
+      )}
 
-      {/* Comments */}
-      <div className="mt-4">
-        <button
-          onClick={() => {
-            playClickSound()
-            setShowComments(!showComments)
-          }}
-          className="text-text-secondary text-sm hover:text-accent transition-colors font-mono"
-        >
-          {showComments ? 'إخفاء التعليقات' : 'عرض التعليقات'}
-        </button>
-        {showComments && (
-          <div className="mt-2">
-            <CommentSection
-              postId={post.id}
-              comments={post.comments || []}
-            />
-          </div>
-        )}
+      {/* Reactions (full community set) */}
+      <div className="border-t border-gray-dark pt-3">
+        <ReactionsBar
+          postId={post.id}
+          reactions={post.reactions}
+          viewerReactions={post.viewer_reactions}
+          isAuthenticated={isAuthenticated}
+        />
       </div>
+
+      {/* Comment / share */}
+      <div className="mt-2 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={handleToggleComments}
+          aria-expanded={showComments}
+          className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            showComments ? 'bg-gray-light text-text' : 'text-text-secondary hover:bg-gray-light hover:text-text'
+          }`}
+        >
+          <MessageSquare className="h-4 w-4" />
+          <span>{post.comment_count}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleShare}
+          className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-gray-light hover:text-text"
+        >
+          {copied ? <Check className="h-4 w-4 text-accent" /> : <Share2 className="h-4 w-4" />}
+          <span>{copied ? 'تم النسخ' : 'مشاركة'}</span>
+        </button>
+      </div>
+
+      {showComments && <CommentThread postId={post.id} isAuthenticated={isAuthenticated} />}
     </Card>
   )
 }

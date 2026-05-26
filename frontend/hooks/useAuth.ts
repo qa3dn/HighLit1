@@ -10,7 +10,16 @@ export interface CurrentUser {
   reputation_points: number
   bio?: string
   avatar_url?: string
+  banner_url?: string
   status_text?: string
+  university?: string
+  major?: string
+  github_username?: string
+  profile_visibility?: 'PUBLIC' | 'PRIVATE'
+  show_posts?: boolean
+  show_code?: boolean
+  show_ideas?: boolean
+  show_activity?: boolean
 }
 
 export function useCurrentUser() {

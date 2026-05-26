@@ -1,30 +1,50 @@
 'use client'
 
-import { useState } from 'react'
-import { Flame, Clock, MessageSquare } from 'lucide-react'
+import { Flame, Clock, TrendingUp } from 'lucide-react'
 import { RantCard } from './RantCard'
-import { Button } from '../ui/Button'
+import { RantCardSkeleton } from './RantCardSkeleton'
+import { LockedGate } from './LockedGate'
 import { playClickSound } from '@/lib/audio'
+import type { FeedSort, Post } from '@/lib/api/posts'
 
 interface RantFeedProps {
-  rants: any[]
-  sort: string
-  onSortChange: (sort: string) => void
+  posts: Post[]
+  sort: FeedSort
+  onSortChange: (sort: FeedSort) => void
+  isAuthenticated: boolean
+  isLoading: boolean
+  locked: boolean
+  remainingLocked: number
+  hasMore: boolean
+  isFetchingMore: boolean
+  onLoadMore: () => void
 }
 
-export function RantFeed({ rants, sort, onSortChange }: RantFeedProps) {
-  const sortOptions = [
-    { value: 'most_solidarity', label: 'الأكثر تضامنًا', icon: Flame },
-    { value: 'recent', label: 'الأحدث', icon: Clock },
-    { value: 'most_comments', label: 'الأكثر نقاشًا', icon: MessageSquare },
-  ]
+const SORT_OPTIONS: { value: FeedSort; label: string; icon: typeof Flame }[] = [
+  { value: 'hot', label: 'الأكثر تفاعلاً', icon: Flame },
+  { value: 'recent', label: 'الأحدث', icon: Clock },
+  { value: 'top', label: 'الأعلى', icon: TrendingUp },
+]
 
+export function RantFeed({
+  posts,
+  sort,
+  onSortChange,
+  isAuthenticated,
+  isLoading,
+  locked,
+  remainingLocked,
+  hasMore,
+  isFetchingMore,
+  onLoadMore,
+}: RantFeedProps) {
   return (
     <div dir="rtl">
-      {/* Sort Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-gray-dark">
-        {sortOptions.map((option) => {
+      {/* Sort tabs */}
+      <div className="mb-6 flex gap-1 border-b border-gray-dark">
+        {SORT_OPTIONS.map((option) => {
           const Icon = option.icon
+          const active = sort === option.value
           return (
             <button
               key={option.value}
@@ -32,31 +52,54 @@ export function RantFeed({ rants, sort, onSortChange }: RantFeedProps) {
                 playClickSound()
                 onSortChange(option.value)
               }}
-              className={`px-4 py-2 font-mono text-sm transition-all border-b-2 flex items-center gap-2 ${
-                sort === option.value
-                  ? 'text-accent border-accent'
-                  : 'text-text-secondary border-transparent hover:text-text hover:border-gray-dark'
+              className={`flex items-center gap-2 border-b-2 px-4 py-2 font-mono text-sm transition-all ${
+                active
+                  ? 'border-accent text-accent'
+                  : 'border-transparent text-text-secondary hover:border-gray-dark hover:text-text'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="h-4 w-4" />
               {option.label}
             </button>
           )
         })}
       </div>
 
-      {/* Feed */}
-      <div>
-        {rants && rants.length > 0 ? (
-          rants.map((rant) => <RantCard key={rant.id} post={rant} />)
-        ) : (
-          <div className="text-center py-12 text-text-secondary font-mono">
-            <p className="text-lg mb-2">ما في فضفضات حالياً</p>
-            <p className="text-sm">كن أول واحد يفضفض!</p>
-          </div>
-        )}
-      </div>
+      {isLoading ? (
+        <div>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <RantCardSkeleton key={i} />
+          ))}
+        </div>
+      ) : posts.length === 0 ? (
+        <div className="rounded-2xl border border-gray-dark bg-gray-light py-16 text-center font-mono text-text-secondary">
+          <p className="mb-2 text-lg">ما في فضفضات هون</p>
+          <p className="text-sm">كن أول واحد يفضفض!</p>
+        </div>
+      ) : (
+        <div>
+          {posts.map((post) => (
+            <RantCard key={post.id} post={post} isAuthenticated={isAuthenticated} />
+          ))}
+
+          {locked && <LockedGate remaining={remainingLocked} />}
+
+          {!locked && hasMore && (
+            <div className="mt-4 flex justify-center">
+              <button
+                onClick={() => {
+                  playClickSound()
+                  onLoadMore()
+                }}
+                disabled={isFetchingMore}
+                className="rounded-xl border border-gray-dark bg-gray-light px-6 py-2.5 text-sm font-medium text-text transition hover:border-accent hover:text-accent disabled:opacity-50"
+              >
+                {isFetchingMore ? '...جارٍ التحميل' : 'تحميل المزيد'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
-

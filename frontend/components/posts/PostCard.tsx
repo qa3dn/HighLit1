@@ -1,24 +1,26 @@
 'use client'
 
+import Link from 'next/link'
 import { Card } from '../ui/Card'
 import { ReactionsBar } from './ReactionsBar'
 import { CommentSection } from './CommentSection'
-import Link from 'next/link'
 import { formatDistanceToNow } from 'date-fns'
 import { ar } from 'date-fns/locale'
 
 interface Post {
-  id: string
+  id: number | string
   content: string
   type: string
   is_anonymous: boolean
   created_at: string
-  user?: {
+  author?: {
+    id: number
     username: string
     avatar_url?: string
-  }
-  reactions?: any[]
-  comments?: any[]
+    rank?: string
+  } | null
+  reaction_count?: number
+  comment_count?: number
 }
 
 interface PostCardProps {
@@ -26,38 +28,48 @@ interface PostCardProps {
 }
 
 export function PostCard({ post }: PostCardProps) {
+  const displayName = post.is_anonymous ? 'مجهول' : post.author?.username ?? 'مستخدم'
+
   return (
-    <Card className="mb-6">
-      <div className="flex items-start gap-4 mb-4">
-        {post.is_anonymous ? (
-          <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center">
-            <span className="text-xl">👤</span>
+    <Card className="mb-6" dir="rtl">
+      <div className="mb-4 flex items-start gap-4">
+        {post.is_anonymous || !post.author?.avatar_url ? (
+          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-gray-dark bg-gray-light font-mono text-sm text-accent">
+            {post.is_anonymous ? '👤' : displayName.charAt(0).toUpperCase()}
           </div>
         ) : (
           <img
-            src={post.user?.avatar_url || '/default-avatar.png'}
-            alt={post.user?.username}
-            className="w-10 h-10 rounded-full"
+            src={post.author.avatar_url}
+            alt={displayName}
+            className="h-10 w-10 rounded-full border border-gray-dark"
           />
         )}
         <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <span className="font-semibold">
-              {post.is_anonymous ? 'مجهول' : post.user?.username}
-            </span>
-            <span className="text-gray-500 text-sm">
-              {formatDistanceToNow(new Date(post.created_at), {
-                addSuffix: true,
-                locale: ar,
-              })}
+          <div className="mb-2 flex items-center gap-2">
+            {post.is_anonymous || !post.author?.id ? (
+              <span className="font-semibold text-text">{displayName}</span>
+            ) : (
+              <Link
+                href={`/profile/${post.author.id}`}
+                className="font-semibold text-text transition-colors hover:text-accent hover:underline"
+              >
+                {displayName}
+              </Link>
+            )}
+            {!post.is_anonymous && post.author?.rank && (
+              <span className="rounded border border-accent/30 bg-accent/10 px-1.5 py-0.5 font-mono text-[10px] text-accent">
+                {post.author.rank}
+              </span>
+            )}
+            <span className="text-sm text-text-secondary">
+              {formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: ar })}
             </span>
           </div>
-          <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
+          <p className="whitespace-pre-wrap text-text-secondary">{post.content}</p>
         </div>
       </div>
-      <ReactionsBar postId={post.id} reactions={post.reactions || []} />
-      <CommentSection postId={post.id} comments={post.comments || []} />
+      <ReactionsBar postId={post.id} reactions={[]} />
+      <CommentSection postId={post.id} comments={[]} />
     </Card>
   )
 }
-

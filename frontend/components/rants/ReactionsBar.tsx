@@ -1,90 +1,109 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Heart, Repeat, Coffee, Brain } from 'lucide-react'
-import { api } from '@/lib/api'
+import { useToggleReaction } from '@/hooks/usePosts'
 import { playClickSound } from '@/lib/audio'
 
 interface ReactionsBarProps {
-  postId: string
-  reactions: any[]
-  onReactionUpdate?: () => void
+  postId: number
+  reactions: { type: string; count: number }[]
+  viewerReactions: string[]
+  isAuthenticated: boolean
 }
 
-const reactionTypes = [
-  { type: 'FEEL_YOU', label: 'حاس فيك', icon: Heart },
+const REACTION_TYPES = [
+  { type: 'FEEL_YOU', label: 'حاسس فيك', icon: Heart },
   { type: 'HAPPENED_TO_ME', label: 'صار معي', icon: Repeat },
   { type: 'TAKE_A_BREAK', label: 'خذ بريك', icon: Coffee },
   { type: 'HELP_ME', label: 'حلّيلي؟', icon: Brain },
-]
+] as const
 
-export function ReactionsBar({
-  postId,
-  reactions: initialReactions,
-  onReactionUpdate,
-}: ReactionsBarProps) {
-  const [reactionsList, setReactionsList] = useState(initialReactions || [])
-  const [isLoading, setIsLoading] = useState(false)
+function toCountMap(reactions: { type: string; count: number }[]): Record<string, number> {
+  const map: Record<string, number> = {}
+  reactions.forEach((reaction) => {
+    map[reaction.type] = reaction.count
+  })
+  return map
+}
 
-  const handleReaction = async (type: string) => {
-    if (isLoading) return
+export function ReactionsBar({ postId, reactions, viewerReactions, isAuthenticated }: ReactionsBarProps) {
+  const router = useRouter()
+  const [counts, setCounts] = useState<Record<string, number>>(() => toCountMap(reactions))
+  const [active, setActive] = useState<Set<string>>(() => new Set(viewerReactions))
+  const toggle = useToggleReaction()
 
+  const handleReaction = (type: string) => {
+    if (!isAuthenticated) {
+      router.push('/login?next=/rants')
+      return
+    }
     playClickSound()
-
-    // Haptic feedback
-    if (navigator.vibrate) {
-      navigator.vibrate(50)
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(40)
     }
 
-    setIsLoading(true)
-    try {
-      await api.post(`/posts/${postId}/reactions`, { type })
-      // Refresh reactions
-      const { data } = await api.get(`/posts/${postId}/reactions`)
-      setReactionsList(data)
-      if (onReactionUpdate) {
-        onReactionUpdate()
-      }
-    } catch (error) {
-      console.error('Failed to add reaction:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+    const wasActive = active.has(type)
+    // Optimistic update; reconciled with the server's authoritative totals.
+    setActive((prev) => {
+      const next = new Set(prev)
+      if (wasActive) next.delete(type)
+      else next.add(type)
+      return next
+    })
+    setCounts((prev) => ({ ...prev, [type]: Math.max((prev[type] || 0) + (wasActive ? -1 : 1), 0) }))
 
-  const getReactionCount = (type: string) => {
-    return reactionsList.filter((r) => r.type === type).length
-  }
-
-  const hasUserReacted = (type: string) => {
-    // Check if current user has reacted (would need user context)
-    return false
+    toggle.mutate(
+      { postId, type },
+      {
+        onSuccess: (data) => {
+          setCounts(toCountMap(data.totals))
+          setActive((prev) => {
+            const next = new Set(prev)
+            if (data.reacted) next.add(type)
+            else next.delete(type)
+            return next
+          })
+        },
+        onError: () => {
+          setActive((prev) => {
+            const next = new Set(prev)
+            if (wasActive) next.add(type)
+            else next.delete(type)
+            return next
+          })
+          setCounts((prev) => ({
+            ...prev,
+            [type]: Math.max((prev[type] || 0) + (wasActive ? 1 : -1), 0),
+          }))
+        },
+      },
+    )
   }
 
   return (
-    <div className="flex flex-wrap gap-2 py-3 border-t border-gray-dark" dir="rtl">
-      {reactionTypes.map((reaction) => {
-        const count = getReactionCount(reaction.type)
-        const isActive = hasUserReacted(reaction.type)
+    <div className="flex flex-wrap gap-2" dir="rtl">
+      {REACTION_TYPES.map((reaction) => {
         const Icon = reaction.icon
-
+        const count = counts[reaction.type] || 0
+        const isActive = active.has(reaction.type)
         return (
           <button
             key={reaction.type}
+            type="button"
             onClick={() => handleReaction(reaction.type)}
-            disabled={isLoading}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all font-mono ${
+            aria-pressed={isActive}
+            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
               isActive
-                ? 'bg-accent/20 text-accent border border-accent'
-                : 'bg-gray-light text-text hover:bg-gray border border-gray-dark hover:border-accent/50'
-            } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                ? 'border-accent bg-accent/15 text-accent'
+                : 'border-gray-dark bg-gray-light text-text-secondary hover:border-accent/50 hover:text-text'
+            }`}
           >
-            <Icon className={`w-4 h-4 ${isActive ? 'fill-accent' : ''}`} />
-            <span className="text-sm font-medium">{reaction.label}</span>
+            <Icon className={`h-4 w-4 ${isActive ? 'fill-accent' : ''}`} />
+            <span>{reaction.label}</span>
             {count > 0 && (
-              <span className="text-xs text-text-secondary bg-gray rounded-full px-2 py-0.5">
-                {count}
-              </span>
+              <span className="rounded-full bg-gray px-1.5 text-xs text-text-secondary">{count}</span>
             )}
           </button>
         )
@@ -92,4 +111,3 @@ export function ReactionsBar({
     </div>
   )
 }
-
