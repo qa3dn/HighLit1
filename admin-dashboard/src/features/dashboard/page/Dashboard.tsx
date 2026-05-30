@@ -15,10 +15,8 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-
 const Dashboard = () => {
   const { data, isLoading, isError } = useOverview();
-
   // 1. Weekly Activity Data
   const weeklyActivityData = [
     { day: 'السبت', activeUsers: 120, actions: 340 },
@@ -29,7 +27,6 @@ const Dashboard = () => {
     { day: 'الخميس', activeUsers: 240, actions: 710 },
     { day: 'الجمعة', activeUsers: 170, actions: 490 },
   ];
-
   // 2. Technology Usage Data
   const techUsageData = [
     { name: 'React', value: 35, fill: 'var(--color-accent)' },
@@ -40,7 +37,6 @@ const Dashboard = () => {
   const techCells = techUsageData.map((entry, index) => (
     <Cell key={`cell-${index}`} fill={entry.fill} />
   ));
-
   // 3. Reports & Feedback Data
   const reportsData = [
     {
@@ -91,9 +87,7 @@ const Dashboard = () => {
       <p className="text-sm text-text-secondary leading-relaxed">{report.content}</p>
     </div>
   ));
-
   if (isLoading) return <Loader fullScreen />;
-
   if (isError || !data) {
     return (
       <div dir="rtl" className="rounded-xl border border-red-500/30 bg-red-500/10 p-6 text-red-400">
@@ -101,14 +95,12 @@ const Dashboard = () => {
       </div>
     );
   }
-
   return (
     <div dir="rtl" className="space-y-8 animate-fade-in">
       <div>
         <h1 className="text-2xl font-bold text-text">نظرة عامة</h1>
         <p className="text-sm text-text-secondary">ملخّص حيّ لحالة المنصة.</p>
       </div>
-
       <section>
         <h2 className="mb-3 text-sm font-semibold text-text-secondary">المستخدمون</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -118,7 +110,6 @@ const Dashboard = () => {
           <StatCard label="محظورون" value={data.users.banned} />
         </div>
       </section>
-
       {/* Charts Section */}
       <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Weekly Activity Analytics */}
@@ -130,8 +121,8 @@ const Dashboard = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="day" stroke="var(--color-text-secondary)" tick={{ fontSize: 12 }} />
                 <YAxis stroke="var(--color-text-secondary)" tick={{ fontSize: 12 }} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'var(--color-gray-light)', borderColor: 'var(--color-border)', borderRadius: '0.75rem', textAlign: 'right' }} 
+                <Tooltip
+                  contentStyle={{ backgroundColor: 'var(--color-gray-light)', borderColor: 'var(--color-border)', borderRadius: '0.75rem', textAlign: 'right' }}
                   labelStyle={{ color: 'var(--color-text)' }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
@@ -141,7 +132,6 @@ const Dashboard = () => {
             </ResponsiveContainer>
           </div>
         </div>
-
         {/* Technology Usage Statistics */}
         <div className="rounded-xl border border-border bg-gray-light p-6 animate-fade-in">
           <h2 className="mb-4 text-sm font-semibold text-text-secondary">إحصائيات استخدام التقنيات</h2>
@@ -160,7 +150,7 @@ const Dashboard = () => {
                 >
                   {techCells}
                 </Pie>
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: 'var(--color-gray-light)', borderColor: 'var(--color-border)', borderRadius: '0.75rem', textAlign: 'right' }}
                 />
                 <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: 12 }} />
@@ -169,7 +159,6 @@ const Dashboard = () => {
           </div>
         </div>
       </section>
-
       <section>
         <h2 className="mb-3 text-sm font-semibold text-text-secondary">المحتوى والمشاريع</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -179,7 +168,6 @@ const Dashboard = () => {
           <StatCard label="مشاريع مرفوضة" value={data.projects.rejected} />
         </div>
       </section>
-
       <section>
         <h2 className="mb-3 text-sm font-semibold text-text-secondary">الشركات والوظائف</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -189,7 +177,6 @@ const Dashboard = () => {
           <StatCard label="مشاريع مخفية" value={data.projects.hidden} />
         </div>
       </section>
-
       {/* Reports & Feedback Section */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-text-secondary">البلاغات والآراء</h2>
@@ -197,7 +184,6 @@ const Dashboard = () => {
           {reportsList}
         </div>
       </section>
-
       <section>
         <h2 className="mb-3 text-sm font-semibold text-text-secondary">آخر النشاطات</h2>
         <div className="overflow-hidden rounded-xl border border-border bg-gray-light">
@@ -232,5 +218,4 @@ const Dashboard = () => {
     </div>
   );
 };
-
 export default Dashboard;
