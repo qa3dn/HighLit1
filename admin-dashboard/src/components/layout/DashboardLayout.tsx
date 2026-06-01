@@ -12,7 +12,7 @@ export const DashboardLayout: React.FC = () => {
         <Navbar />
         
         {/* Main Content Area where child routes are rendered */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 animate-fade-in-up">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 animate-fade-in-up bg-grid">
           <div className="max-w-7xl mx-auto w-full">
             <Outlet />
           </div>
