@@ -3,8 +3,13 @@ import './App.css'
 import { RouterProvider } from "react-router-dom";
 import { router } from "./app/router";
 import { AuthProvider } from './context/AuthContext';
+import { SystemProvider } from './context/SystemContext';
 function App() {
-   return <AuthProvider><RouterProvider router={router} /></AuthProvider>;
+   return <SystemProvider>
+            <AuthProvider>
+               <RouterProvider router={router} />
+            </AuthProvider>
+      </SystemProvider>;
 
 }
 

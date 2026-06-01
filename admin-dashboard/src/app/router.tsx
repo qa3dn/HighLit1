@@ -13,6 +13,7 @@ import NotFoundPage from '../pages/NotFoundPage';
 
 import { LoginPage } from '../features/auth/pages/LoginPage';
 import { ProtectedRoute } from '../routes/ProtectedRoute';
+import Settings from '../features/settings/page/Settings';
 
 export const router = createBrowserRouter([
   {
@@ -99,10 +100,9 @@ export const router = createBrowserRouter([
       {
         path: 'settings',
         element: (
-          <div className="flex h-[60vh] flex-col items-center justify-center gap-4 animate-fade-in">
-            <h2 className="text-xl text-text">⚙️ Settings</h2>
-            <p className="text-text-secondary">System configuration coming soon.</p>
-          </div>
+           <ProtectedRoute>
+          <Settings />
+        </ProtectedRoute>
         ),
       }
     ],
