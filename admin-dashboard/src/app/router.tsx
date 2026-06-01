@@ -9,6 +9,8 @@ import ContentModerationPage from '../features/moderation/pages/ContentModeratio
 import SubscriptionsPage from '../features/subscriptions/pages/SubscriptionsPage';
 import  Dashboard  from '../features/dashboard/page/Dashboard';
 import ActivityPage from '../features/activity/pages/ActivityPage';
+import SavedPage from '../features/saved/pages/SavedPage';
+import ApplicantsPage from '../features/applicants/pages/ApplicantsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 
 import { LoginPage } from '../features/auth/pages/LoginPage';
@@ -93,6 +95,22 @@ export const router = createBrowserRouter([
         element: (
         <ProtectedRoute allowedRoles={['admin']}>
           <SubscriptionsPage />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'saved',
+        element: (
+        <ProtectedRoute allowedRoles={['student']}>
+          <SavedPage />
+        </ProtectedRoute>
+      ),
+      },
+      {
+        path: 'applicants',
+        element: (
+        <ProtectedRoute allowedRoles={['company']}>
+          <ApplicantsPage />
         </ProtectedRoute>
       ),
       },
