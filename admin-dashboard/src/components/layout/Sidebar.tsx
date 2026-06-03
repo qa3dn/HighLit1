@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import logoMark from '../../assets/highlit-mark.png';
+import logo from '../../assets/highlit-logo.png';
 import { useAuth, type UserRole } from '../../context/AuthContext';
 
 type RoleConfig = UserRole | 'all';
@@ -96,15 +96,10 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside dir="rtl" className="w-64 h-screen bg-gray border-l border-border hidden md:flex flex-col animate-fade-in sticky top-0">
-      {/* Brand Header */}
-      <div className="h-16 flex items-center gap-3 px-5 border-b border-border shrink-0">
-        <span className="w-10 h-10 rounded-xl bg-white border border-border flex items-center justify-center shadow-soft shrink-0 p-1.5">
-          <img src={logoMark} alt="HighLit" className="w-full h-full object-contain" />
-        </span>
-        <div className="flex flex-col leading-none">
-          <span className="text-lg font-extrabold text-text tracking-tight">HighLit</span>
-          <span className="mt-1 text-[11px] text-text-secondary font-arabic">لوحة التحكم</span>
-        </div>
+      {/* Brand */}
+      <div className="flex flex-col items-center gap-2.5 px-4 py-6 border-b border-border shrink-0">
+        <img src={logo} alt="HighLit" className="h-20 w-auto object-contain select-none" draggable={false} />
+        <span className="text-[11px] tracking-[0.2em] text-text-secondary font-arabic">لوحة التحكم</span>
       </div>
       
       {/* Navigation Links */}
