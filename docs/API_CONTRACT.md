@@ -247,6 +247,10 @@
 | GET | `/api/v1/companies/subscriptions` | ADMIN | كل الطلبات (فلتر `status`) — مرقّم |
 | POST | `/api/v1/companies/subscriptions/:id/activate` | ADMIN | تفعيل (ACTIVE + تاريخ انتهاء؛ يلغي الاشتراك النشط السابق) |
 | POST | `/api/v1/companies/subscriptions/:id/reject` | ADMIN | رفض (`note`) |
+| GET/POST | `/api/v1/companies/admin/plans` | ADMIN | إدارة الباقات (تشمل غير المفعّلة)؛ إنشاء — يُسجَّل `plan.created` |
+| GET/PATCH/DELETE | `/api/v1/companies/admin/plans/:id` | ADMIN | عرض/تعديل/حذف باقة (الحذف يُرفض إن كانت مرتبطة باشتراكات) — `plan.updated`/`plan.deleted` |
+| GET/POST | `/api/v1/companies/admin/promo-codes` | ADMIN | أكواد الخصم (campaigns): `code`, `discount_type` (PERCENT/FIXED), `amount`, `plan?`, `valid_from?`, `valid_until?`, `max_uses?`, `is_active` — `is_redeemable` محسوب |
+| GET/PATCH/DELETE | `/api/v1/companies/admin/promo-codes/:id` | ADMIN | عرض/تعديل/حذف كود خصم — `promocode.created`/`updated`/`deleted` |
 
 ## 12. الإدارة والتدقيق — `moderation` / `audit` (ADMIN فقط)
 

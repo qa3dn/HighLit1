@@ -68,3 +68,86 @@ export async function rejectSubscription(id: number, note: string) {
   );
   return data;
 }
+
+// ── Plan management (admin) ──────────────────────────────────────────────────
+
+export interface AdminPlan {
+  id: number;
+  tier: string;
+  name: string;
+  description: string;
+  price: string;
+  currency: string;
+  max_active_jobs: number;
+  max_visible_applicants: number;
+  can_view_applicant_contact: boolean;
+  allows_featured_jobs: boolean;
+  duration_days: number;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export type PlanPatch = Partial<Omit<AdminPlan, 'id'>>;
+
+export async function listAdminPlans() {
+  const { data } = await client.get<AdminPlan[]>('/companies/admin/plans');
+  return data;
+}
+
+export async function createPlan(payload: PlanPatch) {
+  const { data } = await client.post<AdminPlan>('/companies/admin/plans', payload);
+  return data;
+}
+
+export async function updatePlan(id: number, patch: PlanPatch) {
+  const { data } = await client.patch<AdminPlan>(`/companies/admin/plans/${id}`, patch);
+  return data;
+}
+
+export async function deletePlan(id: number) {
+  await client.delete(`/companies/admin/plans/${id}`);
+}
+
+// ── Promo codes / discount campaigns (admin) ─────────────────────────────────
+
+export interface PromoCode {
+  id: number;
+  code: string;
+  discount_type: 'PERCENT' | 'FIXED';
+  amount: string;
+  plan: number | null;
+  plan_name: string | null;
+  valid_from: string | null;
+  valid_until: string | null;
+  max_uses: number | null;
+  used_count: number;
+  is_active: boolean;
+  is_redeemable: boolean;
+  created_at: string;
+}
+
+export type PromoPatch = Partial<
+  Pick<
+    PromoCode,
+    'code' | 'discount_type' | 'amount' | 'plan' | 'valid_from' | 'valid_until' | 'max_uses' | 'is_active'
+  >
+>;
+
+export async function listPromoCodes() {
+  const { data } = await client.get<PromoCode[]>('/companies/admin/promo-codes');
+  return data;
+}
+
+export async function createPromoCode(payload: PromoPatch) {
+  const { data } = await client.post<PromoCode>('/companies/admin/promo-codes', payload);
+  return data;
+}
+
+export async function updatePromoCode(id: number, patch: PromoPatch) {
+  const { data } = await client.patch<PromoCode>(`/companies/admin/promo-codes/${id}`, patch);
+  return data;
+}
+
+export async function deletePromoCode(id: number) {
+  await client.delete(`/companies/admin/promo-codes/${id}`);
+}

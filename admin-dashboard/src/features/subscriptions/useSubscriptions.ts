@@ -1,8 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   activateSubscription,
+  createPlan,
+  createPromoCode,
+  deletePlan,
+  deletePromoCode,
+  listAdminPlans,
+  listPromoCodes,
   listSubscriptions,
   rejectSubscription,
+  updatePlan,
+  updatePromoCode,
+  type PlanPatch,
+  type PromoPatch,
 } from './subscriptionService';
 
 export function useSubscriptions(status: string, page: number) {
@@ -25,5 +35,65 @@ export function useRejectSubscription() {
   return useMutation({
     mutationFn: ({ id, note }: { id: number; note: string }) => rejectSubscription(id, note),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-subscriptions'] }),
+  });
+}
+
+// ── Plans ────────────────────────────────────────────────────────────────────
+
+export function usePlans() {
+  return useQuery({ queryKey: ['admin-plans'], queryFn: listAdminPlans });
+}
+
+export function useCreatePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PlanPatch) => createPlan(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-plans'] }),
+  });
+}
+
+export function useUpdatePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: PlanPatch }) => updatePlan(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-plans'] }),
+  });
+}
+
+export function useDeletePlan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deletePlan(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-plans'] }),
+  });
+}
+
+// ── Promo codes ──────────────────────────────────────────────────────────────
+
+export function usePromoCodes() {
+  return useQuery({ queryKey: ['admin-promo-codes'], queryFn: listPromoCodes });
+}
+
+export function useCreatePromoCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: PromoPatch) => createPromoCode(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-promo-codes'] }),
+  });
+}
+
+export function useUpdatePromoCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: PromoPatch }) => updatePromoCode(id, patch),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-promo-codes'] }),
+  });
+}
+
+export function useDeletePromoCode() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deletePromoCode(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-promo-codes'] }),
   });
 }

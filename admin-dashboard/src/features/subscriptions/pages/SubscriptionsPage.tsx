@@ -3,10 +3,20 @@ import { Badge } from '../../../components/ui/Badge';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { Select } from '../../../components/ui/Select';
+import { Tabs, type TabItem } from '../../../components/ui/Tabs';
 import { DataTable, type Column } from '../../../components/ui/DataTable';
 import { Pagination } from '../../../components/ui/Pagination';
 import { useActivateSubscription, useRejectSubscription, useSubscriptions } from '../useSubscriptions';
 import type { CompanySubscription } from '../subscriptionService';
+import PlansTab from '../components/PlansTab';
+import PromoCodesTab from '../components/PromoCodesTab';
+
+type Tab = 'requests' | 'plans' | 'promos';
+const TABS: TabItem<Tab>[] = [
+  { key: 'requests', label: 'الطلبات' },
+  { key: 'plans', label: 'الباقات' },
+  { key: 'promos', label: 'أكواد الخصم' },
+];
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'قيد المراجعة',
@@ -40,7 +50,7 @@ function priceLabel(sub: CompanySubscription) {
   return Number(sub.plan.price) === 0 ? 'مجاني' : `${Number(sub.plan.price)} ${sub.plan.currency}`;
 }
 
-const SubscriptionsPage = () => {
+const RequestsTab = () => {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [toReject, setToReject] = useState<CompanySubscription | null>(null);
@@ -71,9 +81,7 @@ const SubscriptionsPage = () => {
     {
       key: 'status',
       header: 'الحالة',
-      render: (s) => (
-        <Badge variant={STATUS_VARIANT[s.status] ?? 'default'}>{STATUS_LABEL[s.status] ?? s.status}</Badge>
-      ),
+      render: (s) => <Badge variant={STATUS_VARIANT[s.status] ?? 'default'}>{STATUS_LABEL[s.status] ?? s.status}</Badge>,
     },
     { key: 'requested_by', header: 'مقدّم الطلب', render: (s) => <span className="text-text-secondary">{s.requested_by_username || '—'}</span> },
     { key: 'created_at', header: 'التاريخ', render: (s) => <span className="whitespace-nowrap text-text-secondary">{formatDate(s.created_at)}</span> },
@@ -106,14 +114,8 @@ const SubscriptionsPage = () => {
   ];
 
   return (
-    <div dir="rtl" className="space-y-6 animate-fade-in">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-text">طلبات الاشتراك</h1>
-          <p className="mt-1 text-sm text-text-secondary">
-            راجِع وفعّل طلبات باقات الشركات. التفعيل يدوي بالكامل.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex justify-end">
         <Select
           value={status}
           onChange={(e) => {
@@ -128,16 +130,8 @@ const SubscriptionsPage = () => {
         <p className="text-red-400">تعذّر تحميل الطلبات.</p>
       ) : (
         <>
-          <DataTable
-            columns={columns}
-            rows={data?.results ?? []}
-            keyField={(s) => s.id}
-            loading={isLoading}
-            empty="لا توجد طلبات مطابقة."
-          />
-          {data && (
-            <Pagination page={page} hasMore={data.hasMore} total={data.count} onPageChange={setPage} />
-          )}
+          <DataTable columns={columns} rows={data?.results ?? []} keyField={(s) => s.id} loading={isLoading} empty="لا توجد طلبات مطابقة." />
+          {data && <Pagination page={page} hasMore={data.hasMore} total={data.count} onPageChange={setPage} />}
         </>
       )}
 
@@ -161,6 +155,22 @@ const SubscriptionsPage = () => {
           </Button>
         </div>
       </Modal>
+    </div>
+  );
+};
+
+const SubscriptionsPage = () => {
+  const [tab, setTab] = useState<Tab>('requests');
+  return (
+    <div dir="rtl" className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-bold text-text">الاشتراكات والباقات</h1>
+        <p className="mt-1 text-sm text-text-secondary">طلبات الاشتراك، إدارة الباقات، وأكواد الخصم.</p>
+      </div>
+      <Tabs tabs={TABS} active={tab} onChange={setTab} />
+      {tab === 'requests' && <RequestsTab />}
+      {tab === 'plans' && <PlansTab />}
+      {tab === 'promos' && <PromoCodesTab />}
     </div>
   );
 };

@@ -26,6 +26,7 @@ from .models import (
     CompanyPostComment,
     CompanyPostReaction,
     CompanySubscription,
+    PromoCode,
     SubscriptionPlan,
 )
 from .permissions import is_company_manager
@@ -37,6 +38,7 @@ from .serializers import (
     CompanyPostSerializer,
     CompanySerializer,
     CompanySubscriptionSerializer,
+    PromoCodeSerializer,
     SubscriptionPlanSerializer,
 )
 from .services import active_job_count, active_subscription, plan_limits
@@ -525,3 +527,86 @@ class AdminSubscriptionRejectView(APIView):
             request=request,
         )
         return Response(CompanySubscriptionSerializer(sub).data)
+
+
+# ── Admin: subscription-plan management ──────────────────────────────────────
+
+
+class AdminPlanListCreateView(generics.ListCreateAPIView):
+    """Admin CRUD over billing tiers (lists inactive plans too, unlike the
+    public /plans endpoint)."""
+
+    serializer_class = SubscriptionPlanSerializer
+    permission_classes = [IsAdmin]
+    queryset = SubscriptionPlan.objects.all().order_by("sort_order", "price")
+
+    def perform_create(self, serializer):
+        plan = serializer.save()
+        record_event(
+            self.request.user, "plan.created", target_type="subscription_plan",
+            target_id=str(plan.id), payload={"tier": plan.tier}, request=self.request,
+        )
+
+
+class AdminPlanDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SubscriptionPlanSerializer
+    permission_classes = [IsAdmin]
+    queryset = SubscriptionPlan.objects.all()
+
+    def perform_update(self, serializer):
+        plan = serializer.save()
+        record_event(
+            self.request.user, "plan.updated", target_type="subscription_plan",
+            target_id=str(plan.id), request=self.request,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        plan = self.get_object()
+        # plan FK is PROTECT on CompanySubscription — refuse if any reference it.
+        if plan.subscriptions.exists():
+            return Response(
+                {"detail": "لا يمكن حذف باقة مرتبطة باشتراكات. عطّلها بدلاً من حذفها."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        record_event(
+            request.user, "plan.deleted", target_type="subscription_plan",
+            target_id=str(plan.id), payload={"tier": plan.tier}, request=request,
+        )
+        plan.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Admin: promo codes (discount campaigns) ──────────────────────────────────
+
+
+class AdminPromoCodeListCreateView(generics.ListCreateAPIView):
+    serializer_class = PromoCodeSerializer
+    permission_classes = [IsAdmin]
+    queryset = PromoCode.objects.select_related("plan").all()
+
+    def perform_create(self, serializer):
+        promo = serializer.save()
+        record_event(
+            self.request.user, "promocode.created", target_type="promo_code",
+            target_id=str(promo.id), payload={"code": promo.code}, request=self.request,
+        )
+
+
+class AdminPromoCodeDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PromoCodeSerializer
+    permission_classes = [IsAdmin]
+    queryset = PromoCode.objects.select_related("plan").all()
+
+    def perform_update(self, serializer):
+        promo = serializer.save()
+        record_event(
+            self.request.user, "promocode.updated", target_type="promo_code",
+            target_id=str(promo.id), request=self.request,
+        )
+
+    def perform_destroy(self, instance):
+        record_event(
+            self.request.user, "promocode.deleted", target_type="promo_code",
+            target_id=str(instance.id), payload={"code": instance.code}, request=self.request,
+        )
+        instance.delete()

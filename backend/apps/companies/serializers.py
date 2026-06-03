@@ -8,6 +8,7 @@ from .models import (
     CompanyPost,
     CompanyPostComment,
     CompanySubscription,
+    PromoCode,
     SubscriptionPlan,
 )
 
@@ -151,6 +152,33 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             "is_active",
             "sort_order",
         )
+
+
+class PromoCodeSerializer(serializers.ModelSerializer):
+    is_redeemable = serializers.SerializerMethodField()
+    plan_name = serializers.CharField(source="plan.name", read_only=True, default=None)
+
+    class Meta:
+        model = PromoCode
+        fields = (
+            "id",
+            "code",
+            "discount_type",
+            "amount",
+            "plan",
+            "plan_name",
+            "valid_from",
+            "valid_until",
+            "max_uses",
+            "used_count",
+            "is_active",
+            "is_redeemable",
+            "created_at",
+        )
+        read_only_fields = ("id", "used_count", "is_redeemable", "plan_name", "created_at")
+
+    def get_is_redeemable(self, obj) -> bool:
+        return obj.is_redeemable()
 
 
 class CompanySubscriptionSerializer(serializers.ModelSerializer):

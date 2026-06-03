@@ -227,3 +227,54 @@ class CompanySubscription(TimestampedModel):
             models.Index(fields=["company", "status"], name="csub_comp_status_idx"),
             models.Index(fields=["status"], name="csub_status_idx"),
         ]
+
+
+class PromoCode(models.Model):
+    """Admin-managed discount applied to a subscription purchase: a percentage
+    (0–100) or a fixed amount in the plan's currency (JOD). Optionally limited to
+    one plan, a validity window, and a maximum number of redemptions."""
+
+    class DiscountType(models.TextChoices):
+        PERCENT = "PERCENT", "Percent"
+        FIXED = "FIXED", "Fixed"
+
+    code = models.CharField(max_length=40, unique=True)
+    discount_type = models.CharField(
+        max_length=10, choices=DiscountType.choices, default=DiscountType.PERCENT
+    )
+    amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    plan = models.ForeignKey(
+        SubscriptionPlan,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="promo_codes",
+    )
+    valid_from = models.DateTimeField(null=True, blank=True)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    max_uses = models.PositiveIntegerField(null=True, blank=True)
+    used_count = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.code
+
+    def is_redeemable(self) -> bool:
+        """Whether the code can be applied right now (active, in-window, under
+        its usage cap)."""
+        from django.utils import timezone
+
+        if not self.is_active:
+            return False
+        now = timezone.now()
+        if self.valid_from and now < self.valid_from:
+            return False
+        if self.valid_until and now > self.valid_until:
+            return False
+        if self.max_uses is not None and self.used_count >= self.max_uses:
+            return False
+        return True
