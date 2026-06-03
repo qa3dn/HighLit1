@@ -251,7 +251,7 @@
 
 | الطريقة | المسار | الوصف |
 |---------|--------|--------|
-| GET | `/api/v1/moderation/overview` | لقطة لوحة الأدمن في طلب واحد (مستخدمون/محتوى/مشاريع/شركات + آخر النشاطات) |
+| GET | `/api/v1/moderation/overview` | لقطة لوحة الأدمن في طلب واحد (مستخدمون/محتوى/مشاريع/شركات + آخر النشاطات + تحليلات النشاط الأسبوعي واستخدام التقنيات وأحدث التقييمات) — الشكل أدناه |
 | GET | `/api/v1/moderation/posts` | كل المنشورات للمراجعة — فلترة `q` (المحتوى/الكاتب)، `type`، `hidden` (`true`/`false`)، `ordering` (`recent`/`top`)، `page`/`limit`. يُرجع `{results,total,page,limit,has_more}` ويُظهر الكاتب الحقيقي حتى للمجهول |
 | PATCH | `/api/v1/moderation/posts/:id` | إخفاء/إظهار منشور (`{is_hidden: bool}`) — قابل للتراجع، يُسجَّل في التدقيق |
 | DELETE | `/api/v1/moderation/posts/:id` | حذف منشور نهائياً (يُسجَّل في التدقيق) |
@@ -265,6 +265,30 @@
 > الأدمن يرى كل المتقدمين بلا بوّابة عبر `GET /api/v1/jobs/:id/applicants`، ويغلق/يحذف أي وظيفة عبر `PATCH/DELETE /api/v1/jobs/:id`. أفعال التدقيق: `job.featured`/`job.unfeatured`.
 
 > المحتوى المخفي (`is_hidden=True`) يبقى في قاعدة البيانات لكنه يُستبعَد من كل مسارات القراءة العامة (الفيد، الفضفضات، الترند، الوسوم، التفاصيل، التعليقات، الإحصائيات). الإجراءات تُسجَّل بأفعال `post.hidden`/`post.unhidden`/`post.deleted` و`comment.*`.
+
+**شكل `GET /api/v1/moderation/overview`** (كل البيانات حقيقية من قاعدة البيانات):
+
+```json
+{
+  "users":    { "total": 0, "banned": 0, "admins": 0, "companies": 0 },
+  "content":  { "posts": 0, "comments": 0, "reactions": 0 },
+  "projects": { "published": 0, "hidden": 0, "rejected": 0 },
+  "companies":{ "total": 0, "verified": 0, "jobs": 0 },
+  "recent_activity": [ /* آخر 10 أحداث تدقيق (AuditEvent) */ ],
+  "weekly_activity": [
+    { "date": "2026-05-28", "actions": 0, "active_users": 0 }
+    /* 7 عناصر، الأقدم أولاً؛ actions=عدد أحداث التدقيق، active_users=الفاعلون المميَّزون */
+  ],
+  "tech_usage": [
+    { "name": "React", "value": 12 }
+    /* أعلى 6 تقنيات من tech_stack للمشاريع المنشورة، تنازلياً */
+  ],
+  "recent_reviews": [
+    { "id": 1, "author": "username", "job_title": "...", "rating": 5, "comment": "...", "created_at": "ISO" }
+    /* أحدث 5 تقييمات (JobReview) */
+  ]
+}
+```
 
 ## 13. تحديثات المستخدمين والصلاحيات (`users`)
 

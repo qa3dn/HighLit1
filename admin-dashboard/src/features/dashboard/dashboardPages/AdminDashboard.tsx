@@ -7,7 +7,8 @@ import {
     Star,
     Clock,
     TrendingUp,
-    TrendingDown
+    TrendingDown,
+    type LucideIcon
 } from 'lucide-react';
 import {
     AreaChart,
@@ -20,7 +21,7 @@ import {
 } from 'recharts';
 import { useAdminDashboard } from '../hooks/useAdminDashboard';
 
-const iconMap: Record<'Users' | 'Building2' | 'Briefcase' | 'FileText', React.ComponentType<any>> = {
+const iconMap: Record<'Users' | 'Building2' | 'Briefcase' | 'FileText', LucideIcon> = {
     Users: Users,
     Building2: Building2,
     Briefcase: Briefcase,

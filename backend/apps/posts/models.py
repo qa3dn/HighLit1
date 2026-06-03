@@ -116,6 +116,12 @@ class JobReview(models.Model):
     comment = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"], name="jobreview_created_idx"),
+        ]
+
 
 class JobApplication(models.Model):
     class Status(models.TextChoices):
