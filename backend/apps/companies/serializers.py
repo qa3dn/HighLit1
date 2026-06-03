@@ -270,6 +270,16 @@ class PromotionCampaignSerializer(serializers.ModelSerializer):
             "updated_at",
         )
 
+    def validate(self, attrs):
+        # A JOB campaign may only target a job that belongs to its own company.
+        target = attrs.get("target_type") or getattr(self.instance, "target_type", None)
+        job = attrs.get("job", getattr(self.instance, "job", None))
+        company = attrs.get("company", getattr(self.instance, "company", None))
+        if target == PromotionCampaign.Target.JOB and job is not None and company is not None:
+            if job.company_profile_id != company.id:
+                raise serializers.ValidationError({"job": "الوظيفة لا تتبع هذه الشركة."})
+        return attrs
+
 
 class CompanySubscriptionSerializer(serializers.ModelSerializer):
     plan = SubscriptionPlanSerializer(read_only=True)
