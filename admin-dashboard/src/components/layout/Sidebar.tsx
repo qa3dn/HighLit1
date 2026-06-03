@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { Zap } from 'lucide-react';
 import { useAuth, type UserRole } from '../../context/AuthContext';
 
 type RoleConfig = UserRole | 'all';
@@ -96,15 +97,14 @@ export const Sidebar: React.FC = () => {
   return (
     <aside dir="rtl" className="w-64 h-screen bg-gray border-l border-border hidden md:flex flex-col animate-fade-in sticky top-0">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-border">
-        <h1 className="text-xl font-bold text-accent font-arabic flex items-center gap-2">
-          <span className="w-8 h-8 rounded-md bg-accent/10 flex items-center justify-center border border-accent/20 shadow-glow">
-             <svg className="w-5 h-5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-             </svg>
-          </span>
-          لوحة<span className="text-text">التحكم</span>
-        </h1>
+      <div className="h-16 flex items-center gap-3 px-5 border-b border-border shrink-0">
+        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent/25 to-accent/5 border border-accent/30 flex items-center justify-center shadow-glow shrink-0">
+          <Zap className="w-5 h-5 text-accent" />
+        </span>
+        <div className="flex flex-col leading-none">
+          <span className="text-lg font-extrabold text-text tracking-tight">HighLit</span>
+          <span className="mt-1 text-[11px] text-text-secondary font-arabic">لوحة التحكم</span>
+        </div>
       </div>
       
       {/* Navigation Links */}
