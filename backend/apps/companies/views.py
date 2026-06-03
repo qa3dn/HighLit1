@@ -30,6 +30,7 @@ from .models import (
     Invoice,
     Payment,
     PromoCode,
+    PromotionCampaign,
     SubscriptionPlan,
 )
 from .permissions import is_company_manager
@@ -43,6 +44,7 @@ from .serializers import (
     CompanySubscriptionSerializer,
     InvoiceSerializer,
     PromoCodeSerializer,
+    PromotionCampaignSerializer,
     SubscriptionPlanSerializer,
 )
 from .services import (
@@ -738,3 +740,100 @@ class PaymentWebhookView(APIView):
                 payload={"gateway": gateway.name}, request=request,
             )
         return Response({"ok": True})
+
+
+# ── Promotion campaigns (paid, time-boxed featuring) ─────────────────────────
+
+
+class AdminCampaignListCreateView(generics.ListCreateAPIView):
+    serializer_class = PromotionCampaignSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = DefaultPagination
+
+    def get_queryset(self):
+        qs = PromotionCampaign.objects.select_related("company", "job")
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        return qs.order_by("-created_at")
+
+    def perform_create(self, serializer):
+        campaign = serializer.save(
+            created_by=self.request.user, status=PromotionCampaign.Status.PENDING
+        )
+        record_event(
+            self.request.user, "campaign.created", target_type="campaign",
+            target_id=str(campaign.id), payload={"name": campaign.name}, request=self.request,
+        )
+
+
+class AdminCampaignDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PromotionCampaignSerializer
+    permission_classes = [IsAdmin]
+    queryset = PromotionCampaign.objects.select_related("company", "job")
+
+    def perform_destroy(self, instance):
+        # If an active job promotion is deleted, clear the feature flag.
+        if (
+            instance.status == PromotionCampaign.Status.ACTIVE
+            and instance.target_type == PromotionCampaign.Target.JOB
+            and instance.job_id
+        ):
+            Job.objects.filter(pk=instance.job_id).update(is_featured=False)
+        record_event(
+            self.request.user, "campaign.deleted", target_type="campaign",
+            target_id=str(instance.id), request=self.request,
+        )
+        instance.delete()
+
+
+class AdminCampaignActivateView(APIView):
+    """Activate a campaign: feature the target job and (for paid campaigns) open
+    an invoice. Atomic so the feature flag and invoice move together."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        from decimal import Decimal
+
+        campaign = get_object_or_404(
+            PromotionCampaign.objects.select_related("company", "job"), pk=pk
+        )
+        with transaction.atomic():
+            campaign.status = PromotionCampaign.Status.ACTIVE
+            campaign.activated_by = request.user
+            if campaign.target_type == PromotionCampaign.Target.JOB and campaign.job_id:
+                Job.objects.filter(pk=campaign.job_id).update(is_featured=True)
+            if campaign.invoice_id is None and Decimal(campaign.price) > 0:
+                campaign.invoice = Invoice.objects.create(
+                    company=campaign.company,
+                    description=f"حملة ترويجية: {campaign.name}",
+                    amount=campaign.price,
+                    total=campaign.price,
+                    currency=campaign.currency,
+                    status=Invoice.Status.OPEN,
+                )
+            campaign.save(update_fields=["status", "activated_by", "invoice", "updated_at"])
+        record_event(
+            request.user, "campaign.activated", target_type="campaign",
+            target_id=str(campaign.id), payload={"company": campaign.company.slug}, request=request,
+        )
+        return Response(PromotionCampaignSerializer(campaign).data)
+
+
+class AdminCampaignEndView(APIView):
+    """End a campaign (EXPIRED) and clear the target job's feature flag."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        campaign = get_object_or_404(PromotionCampaign.objects.select_related("job"), pk=pk)
+        campaign.status = PromotionCampaign.Status.EXPIRED
+        if campaign.target_type == PromotionCampaign.Target.JOB and campaign.job_id:
+            Job.objects.filter(pk=campaign.job_id).update(is_featured=False)
+        campaign.save(update_fields=["status", "updated_at"])
+        record_event(
+            request.user, "campaign.ended", target_type="campaign",
+            target_id=str(campaign.id), request=request,
+        )
+        return Response(PromotionCampaignSerializer(campaign).data)

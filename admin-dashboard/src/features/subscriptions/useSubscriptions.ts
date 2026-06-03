@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  activateCampaign,
   activateSubscription,
+  createCampaign,
   createPlan,
   createPromoCode,
+  deleteCampaign,
   deletePlan,
   deletePromoCode,
+  endCampaign,
   listAdminPlans,
+  listCampaigns,
   listInvoices,
   listPromoCodes,
   listSubscriptions,
@@ -14,6 +19,7 @@ import {
   updatePlan,
   updatePromoCode,
   voidInvoice,
+  type CampaignPayload,
   type PlanPatch,
   type PromoPatch,
 } from './subscriptionService';
@@ -123,5 +129,46 @@ export function useVoidInvoice() {
   return useMutation({
     mutationFn: (id: number) => voidInvoice(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-invoices'] }),
+  });
+}
+
+// ── Campaigns ────────────────────────────────────────────────────────────────
+
+export function useCampaigns(status: string, page: number) {
+  return useQuery({
+    queryKey: ['admin-campaigns', status, page],
+    queryFn: () => listCampaigns({ status: status || undefined, page }),
+  });
+}
+
+export function useCreateCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CampaignPayload) => createCampaign(payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-campaigns'] }),
+  });
+}
+
+export function useActivateCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => activateCampaign(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-campaigns'] }),
+  });
+}
+
+export function useEndCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => endCampaign(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-campaigns'] }),
+  });
+}
+
+export function useDeleteCampaign() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteCampaign(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-campaigns'] }),
   });
 }

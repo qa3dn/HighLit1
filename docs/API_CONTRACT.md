@@ -259,6 +259,11 @@
 
 > **الفوترة:** تفعيل اشتراك بباقة مدفوعة (`price>0`) يُنشئ فاتورة `OPEN` تلقائياً (يقبل `promo_code` للخصم). التسوية يدوية الآن (`/pay`) أو عبر webhook موقّع. المال `Decimal` بعملة الباقة (JOD). التسوية ذرّية (`select_for_update`) و idempotent عبر `Payment.idempotency_key` الفريد. أفعال التدقيق: `invoice.paid`/`invoice.voided`.
 
+| GET/POST | `/api/v1/companies/admin/campaigns` | ADMIN | الحملات الترويجية (فلتر `status`، مرقّمة)؛ إنشاء: `company`, `name`, `target_type` (JOB/COMPANY), `job?`, `price`, `starts_at`, `ends_at` — `campaign.created` |
+| GET/PATCH/DELETE | `/api/v1/companies/admin/campaigns/:id` | ADMIN | عرض/تعديل/حذف حملة (الحذف يُلغي تمييز الوظيفة إن كانت نشطة) — `campaign.deleted` |
+| POST | `/api/v1/companies/admin/campaigns/:id/activate` | ADMIN | تفعيل: يميّز الوظيفة الهدف (`is_featured=True`) ويفتح فاتورة للمبلغ (ذرّي) — `campaign.activated` |
+| POST | `/api/v1/companies/admin/campaigns/:id/end` | ADMIN | إنهاء (`EXPIRED`) ويلغي تمييز الوظيفة — `campaign.ended` |
+
 ## 12. الإدارة والتدقيق — `moderation` / `audit` (ADMIN فقط)
 
 | الطريقة | المسار | الوصف |

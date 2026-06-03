@@ -361,3 +361,61 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment #{self.pk} {self.status} ({self.gateway})"
+
+
+class PromotionCampaign(models.Model):
+    """A paid, time-boxed promotion — featuring a job (or the company) for a
+    period. Activating sets the target job's `is_featured` flag; ending clears
+    it. Priced like a one-off invoice (the free `is_featured` toggle, monetized)."""
+
+    class Target(models.TextChoices):
+        JOB = "JOB", "Job"
+        COMPANY = "COMPANY", "Company"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        ACTIVE = "ACTIVE", "Active"
+        REJECTED = "REJECTED", "Rejected"
+        EXPIRED = "EXPIRED", "Expired"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="campaigns")
+    name = models.CharField(max_length=160)
+    target_type = models.CharField(max_length=10, choices=Target.choices, default=Target.JOB)
+    job = models.ForeignKey(
+        "posts.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="promotions"
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=8, default="JOD")
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    invoice = models.ForeignKey(
+        Invoice, null=True, blank=True, on_delete=models.SET_NULL, related_name="campaigns"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_campaigns",
+    )
+    activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="activated_campaigns",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status"], name="campaign_status_idx"),
+            models.Index(fields=["company", "status"], name="campaign_comp_status_idx"),
+        ]
+
+    def __str__(self):
+        return self.name

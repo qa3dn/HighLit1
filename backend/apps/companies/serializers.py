@@ -11,6 +11,7 @@ from .models import (
     Invoice,
     Payment,
     PromoCode,
+    PromotionCampaign,
     SubscriptionPlan,
 )
 
@@ -230,6 +231,44 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "payments",
         )
         read_only_fields = fields
+
+
+class PromotionCampaignSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    job_title = serializers.CharField(source="job.title", read_only=True, default=None)
+
+    class Meta:
+        model = PromotionCampaign
+        fields = (
+            "id",
+            "company",
+            "company_name",
+            "name",
+            "target_type",
+            "job",
+            "job_title",
+            "price",
+            "currency",
+            "starts_at",
+            "ends_at",
+            "status",
+            "invoice",
+            "created_by",
+            "activated_by",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "company_name",
+            "job_title",
+            "status",
+            "invoice",
+            "created_by",
+            "activated_by",
+            "created_at",
+            "updated_at",
+        )
 
 
 class CompanySubscriptionSerializer(serializers.ModelSerializer):

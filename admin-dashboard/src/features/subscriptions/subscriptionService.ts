@@ -222,3 +222,69 @@ export async function voidInvoice(id: number) {
   const { data } = await client.post<Invoice>(`/companies/admin/invoices/${id}/void`, {});
   return data;
 }
+
+// ── Promotion campaigns (admin) ──────────────────────────────────────────────
+
+export interface Campaign {
+  id: number;
+  company: number;
+  company_name: string;
+  name: string;
+  target_type: 'JOB' | 'COMPANY';
+  job: number | null;
+  job_title: string | null;
+  price: string;
+  currency: string;
+  starts_at: string;
+  ends_at: string;
+  status: string;
+  invoice: number | null;
+  created_at: string;
+}
+
+export interface CampaignPayload {
+  company: number;
+  name: string;
+  target_type: 'JOB' | 'COMPANY';
+  job?: number | null;
+  price: string;
+  currency?: string;
+  starts_at: string;
+  ends_at: string;
+}
+
+export interface CampaignPage {
+  results: Campaign[];
+  count: number;
+  hasMore: boolean;
+}
+
+export async function listCampaigns(params: { status?: string; page?: number } = {}) {
+  const query: Record<string, string | number> = {};
+  if (params.status) query.status = params.status;
+  if (params.page) query.page = params.page;
+  const { data } = await client.get<DrfPage<Campaign> | Campaign[]>('/companies/admin/campaigns', {
+    params: query,
+  });
+  if (Array.isArray(data)) return { results: data, count: data.length, hasMore: false };
+  return { results: data.results, count: data.count, hasMore: Boolean(data.next) };
+}
+
+export async function createCampaign(payload: CampaignPayload) {
+  const { data } = await client.post<Campaign>('/companies/admin/campaigns', payload);
+  return data;
+}
+
+export async function activateCampaign(id: number) {
+  const { data } = await client.post<Campaign>(`/companies/admin/campaigns/${id}/activate`, {});
+  return data;
+}
+
+export async function endCampaign(id: number) {
+  const { data } = await client.post<Campaign>(`/companies/admin/campaigns/${id}/end`, {});
+  return data;
+}
+
+export async function deleteCampaign(id: number) {
+  await client.delete(`/companies/admin/campaigns/${id}`);
+}
