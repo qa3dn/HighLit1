@@ -165,8 +165,9 @@
 | GET | `/api/v1/student-projects/mine` | JWT | مشاريع المستخدم (كل الحالات) |
 | GET | `/api/v1/student-projects/facets` | عام | قيم `universities` و `majors` للفلاتر |
 | GET/PATCH/DELETE | `/api/v1/student-projects/:id` | GET عام إن منشور؛ تعديل/حذف المالك أو ADMIN | تفاصيل ومتابعة |
-| POST | `/api/v1/student-projects/:id/hide` | ADMIN | إخفاء (`HIDDEN`) |
-| POST | `/api/v1/student-projects/:id/reject` | ADMIN | رفض (`REJECTED`) — جسم: `{ "reason": "..." }` |
+| POST | `/api/v1/student-projects/:id/hide` | ADMIN | إخفاء (`HIDDEN`) — يُسجَّل `project.hidden` |
+| POST | `/api/v1/student-projects/:id/reject` | ADMIN | رفض (`REJECTED`) — جسم: `{ "reason": "..." }`، يُسجَّل `project.rejected` |
+| POST | `/api/v1/student-projects/:id/approve` | ADMIN | إعادة للنشر (`PUBLISHED`) وتمسح سبب الرفض — يُسجَّل `project.approved` |
 
 ### استعلامات القائمة (GET)
 

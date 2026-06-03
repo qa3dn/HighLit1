@@ -67,3 +67,52 @@ export async function updateCompany(slug: string, patch: CompanyPatch) {
   const { data } = await client.patch<AdminCompany>(`/companies/${slug}`, patch);
   return data;
 }
+
+// ── Detail drawer ──────────────────────────────────────────────────────────
+
+export interface CompanyMember {
+  id: number;
+  user_id: number;
+  username: string;
+  avatar_url: string;
+  role: 'OWNER' | 'ADMIN' | 'EMPLOYEE';
+  title: string;
+  joined_at: string;
+}
+
+export interface CompanyMedia {
+  id: number;
+  url: string;
+  caption: string;
+  created_at: string;
+}
+
+export interface CompanyDetail extends AdminCompany {
+  about: string;
+  size: string;
+  website: string;
+  logo_url: string;
+  banner_url: string;
+  founded_year: number | null;
+  members: CompanyMember[];
+  media: CompanyMedia[];
+}
+
+export interface CompanyAnalytics {
+  followers: number;
+  members: number;
+  posts: number;
+  jobs: number;
+  media: number;
+  is_verified: boolean;
+}
+
+export async function getCompanyDetail(slug: string) {
+  const { data } = await client.get<CompanyDetail>(`/companies/${slug}`);
+  return data;
+}
+
+export async function getCompanyAnalytics(slug: string) {
+  const { data } = await client.get<CompanyAnalytics>(`/companies/${slug}/analytics`);
+  return data;
+}

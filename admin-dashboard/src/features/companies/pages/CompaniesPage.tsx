@@ -7,6 +7,7 @@ import { DataTable, type Column } from '../../../components/ui/DataTable';
 import { Pagination } from '../../../components/ui/Pagination';
 import { useApproveCompany, useCompanies, useRejectCompany, useVerifyCompany } from '../useCompanies';
 import type { AdminCompany, CompanyFilters } from '../companyService';
+import { CompanyDetailDrawer } from '../components/CompanyDetailDrawer';
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: 'قيد المراجعة',
@@ -25,6 +26,7 @@ const CompaniesPage = () => {
   const [filters, setFilters] = useState<CompanyFilters>({ page: 1 });
   const [toReject, setToReject] = useState<AdminCompany | null>(null);
   const [note, setNote] = useState('');
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useCompanies(filters);
   const verify = useVerifyCompany();
@@ -70,7 +72,7 @@ const CompaniesPage = () => {
       key: 'actions',
       header: 'إجراءات',
       render: (c) => (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {c.status !== 'APPROVED' && (
             <button
               type="button"
@@ -148,6 +150,7 @@ const CompaniesPage = () => {
             columns={columns}
             rows={data?.results ?? []}
             keyField={(c) => c.id}
+            onRowClick={(c) => setSelectedSlug(c.slug)}
             loading={isLoading}
             empty="لا توجد شركات مطابقة."
           />
@@ -182,6 +185,8 @@ const CompaniesPage = () => {
           </Button>
         </div>
       </Modal>
+
+      <CompanyDetailDrawer slug={selectedSlug} onClose={() => setSelectedSlug(null)} />
     </div>
   );
 };

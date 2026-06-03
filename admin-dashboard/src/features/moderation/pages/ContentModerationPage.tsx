@@ -15,6 +15,7 @@ import {
   useSetPostHidden,
 } from '../useModeration';
 import type { ModComment, ModPost } from '../moderationService';
+import { ContentDetailDrawer, type SelectedContent } from '../components/ContentDetailDrawer';
 
 type Tab = 'posts' | 'comments';
 
@@ -49,6 +50,7 @@ const ContentModerationPage = () => {
   const [ordering, setOrdering] = useState('recent');
   const [page, setPage] = useState(1);
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
+  const [selected, setSelected] = useState<SelectedContent | null>(null);
 
   const postsQuery = usePosts({ q: query, type, hidden, ordering, page }, tab === 'posts');
   const commentsQuery = useComments({ q: query, hidden, page }, tab === 'comments');
@@ -122,7 +124,7 @@ const ContentModerationPage = () => {
       key: 'actions',
       header: 'إجراءات',
       render: (p) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             onClick={() => setPostHidden.mutate({ id: p.id, isHidden: !p.is_hidden })}
@@ -166,7 +168,7 @@ const ContentModerationPage = () => {
       key: 'actions',
       header: 'إجراءات',
       render: (c) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
             onClick={() => setCommentHidden.mutate({ id: c.id, isHidden: !c.is_hidden })}
@@ -267,6 +269,7 @@ const ContentModerationPage = () => {
           columns={postColumns}
           rows={postsQuery.data?.results ?? []}
           keyField={(p) => p.id}
+          onRowClick={(p) => setSelected({ type: 'post', item: p })}
           loading={postsQuery.isLoading}
           empty="لا توجد منشورات مطابقة."
         />
@@ -275,6 +278,7 @@ const ContentModerationPage = () => {
           columns={commentColumns}
           rows={commentsQuery.data?.results ?? []}
           keyField={(c) => c.id}
+          onRowClick={(c) => setSelected({ type: 'comment', item: c })}
           loading={commentsQuery.isLoading}
           empty="لا توجد تعليقات مطابقة."
         />
@@ -306,6 +310,8 @@ const ContentModerationPage = () => {
           </Button>
         </div>
       </Modal>
+
+      <ContentDetailDrawer selected={selected} onClose={() => setSelected(null)} />
     </div>
   );
 };

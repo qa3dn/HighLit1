@@ -4,6 +4,8 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.audit.services import record_event
+
 from .models import StudentProject
 from .permissions import IsAdmin, IsOwnerOrAdmin
 from .serializers import (
@@ -142,6 +144,9 @@ class HideProjectView(APIView):
         project = get_object_or_404(StudentProject, pk=pk)
         project.status = StudentProject.Status.HIDDEN
         project.save(update_fields=["status", "updated_at"])
+        record_event(
+            request.user, "project.hidden", target_type="project", target_id=str(project.pk), request=request
+        )
         return Response(StudentProjectSerializer(project).data)
 
 
@@ -155,4 +160,29 @@ class RejectProjectView(APIView):
         project.status = StudentProject.Status.REJECTED
         project.rejection_reason = serializer.validated_data.get("reason", "")
         project.save(update_fields=["status", "rejection_reason", "updated_at"])
+        record_event(
+            request.user,
+            "project.rejected",
+            target_type="project",
+            target_id=str(project.pk),
+            payload={"reason": project.rejection_reason},
+            request=request,
+        )
+        return Response(StudentProjectSerializer(project).data)
+
+
+class ApproveProjectView(APIView):
+    """Admin restores a hidden/rejected project to PUBLISHED (clears any
+    rejection reason). Records an audit event."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        project = get_object_or_404(StudentProject, pk=pk)
+        project.status = StudentProject.Status.PUBLISHED
+        project.rejection_reason = ""
+        project.save(update_fields=["status", "rejection_reason", "updated_at"])
+        record_event(
+            request.user, "project.approved", target_type="project", target_id=str(project.pk), request=request
+        )
         return Response(StudentProjectSerializer(project).data)

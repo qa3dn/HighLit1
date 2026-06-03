@@ -12,6 +12,7 @@ import {
   type ProjectFilters,
   type StudentProject,
 } from '../../../services/studentProjects';
+import { ProjectDetailDrawer } from '../components/ProjectDetailDrawer';
 
 const STATUS_LABEL: Record<string, string> = {
   PUBLISHED: 'منشور',
@@ -30,6 +31,7 @@ const ProjectsReviewPage = () => {
   const [filters, setFilters] = useState<ProjectFilters>({});
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [selectedProject, setSelectedProject] = useState<StudentProject | null>(null);
 
   const {
     data: projects = [],
@@ -78,7 +80,7 @@ const ProjectsReviewPage = () => {
       header: 'إجراءات',
       render: (p) =>
         p.status === 'PUBLISHED' ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => hideMutation.mutate(p.id)}
@@ -143,6 +145,7 @@ const ProjectsReviewPage = () => {
           columns={columns}
           rows={projects}
           keyField={(p) => p.id}
+          onRowClick={(p) => setSelectedProject(p)}
           loading={isLoading}
           empty="لا توجد مشاريع مطابقة."
         />
@@ -168,6 +171,8 @@ const ProjectsReviewPage = () => {
           </Button>
         </div>
       </Modal>
+
+      <ProjectDetailDrawer project={selectedProject} onClose={() => setSelectedProject(null)} />
     </div>
   );
 };

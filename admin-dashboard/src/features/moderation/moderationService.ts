@@ -99,3 +99,20 @@ export async function setCommentHidden(id: number, isHidden: boolean) {
 export async function deleteComment(id: number) {
   await client.delete(`/moderation/comments/${id}`);
 }
+
+// roast_mode toggle (post "approve" clears roast_mode; "reject" sets it)
+export async function approvePost(id: number) {
+  const { data } = await client.post<{ post_id: number; status: string }>(
+    `/moderation/posts/${id}/approve`,
+    {},
+  );
+  return data;
+}
+
+export async function rejectPost(id: number) {
+  const { data } = await client.post<{ post_id: number; status: string }>(
+    `/moderation/posts/${id}/reject`,
+    {},
+  );
+  return data;
+}
