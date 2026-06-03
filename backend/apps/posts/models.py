@@ -35,6 +35,11 @@ class Comment(models.Model):
     is_hidden = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["user"], name="comment_user_idx"),
+        ]
+
 
 class Reaction(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="reactions")
@@ -106,6 +111,7 @@ class Job(models.Model):
         ordering = ["-is_featured", "-created_at"]
         indexes = [
             models.Index(fields=["status", "job_type", "-created_at"], name="job_status_type_idx"),
+            models.Index(fields=["created_by"], name="job_created_by_idx"),
         ]
 
 

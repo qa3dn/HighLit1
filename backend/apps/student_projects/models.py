@@ -49,6 +49,9 @@ class StudentProject(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user"], name="sproj_user_idx"),
+        ]
 
     def __str__(self):
         return self.title

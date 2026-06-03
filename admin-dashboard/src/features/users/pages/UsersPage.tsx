@@ -5,6 +5,7 @@ import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
 import { useDeleteUser, useSetUserBan, useSetUserRole, useUsers } from '../useUsers';
 import type { AdminUser, UserRole } from '../userService';
+import { UserDetailDrawer } from '../components/UserDetailDrawer';
 
 const ROLES: UserRole[] = ['USER', 'ADMIN', 'COMPANY'];
 
@@ -18,6 +19,7 @@ const UsersPage = () => {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [toDelete, setToDelete] = useState<AdminUser | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
 
   const { data: users, isLoading, isError } = useUsers(query);
   const setRole = useSetUserRole();
@@ -71,7 +73,11 @@ const UsersPage = () => {
             </thead>
             <tbody className="divide-y divide-border">
               {(users ?? []).map((user) => (
-                <tr key={user.id} className="hover:bg-gray transition-colors">
+                <tr
+                  key={user.id}
+                  onClick={() => setSelectedUserId(user.id)}
+                  className="cursor-pointer hover:bg-gray transition-colors"
+                >
                   <td className="px-4 py-3 font-medium text-text">{user.username}</td>
                   <td className="px-4 py-3 text-text-secondary">{user.email}</td>
                   <td className="px-4 py-3">
@@ -84,7 +90,7 @@ const UsersPage = () => {
                       <Badge variant="danger">محظور</Badge>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex flex-wrap items-center gap-2">
                       <select
                         value={user.role}
@@ -143,6 +149,8 @@ const UsersPage = () => {
           </Button>
         </div>
       </Modal>
+
+      <UserDetailDrawer userId={selectedUserId} onClose={() => setSelectedUserId(null)} />
     </div>
   );
 };

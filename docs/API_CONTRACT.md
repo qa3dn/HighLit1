@@ -296,6 +296,33 @@
 |---------|--------|--------|--------|
 | POST | `/api/v1/users/:id/role` | ADMIN | تعيين الدور (المسار الوحيد الذي يغيّر `role`) |
 | POST | `/api/v1/users/:id/ban` | ADMIN | حظر/رفع الحظر عبر `is_active` |
+| POST | `/api/v1/users/:id/reputation` | ADMIN | تعديل النقاط (`{points}` مقيَّد بـ ±100) |
+| GET | `/api/v1/users/:id/admin-detail` | ADMIN | لقطة كاملة لحساب واحد في طلب واحد — الشكل أدناه |
+| POST | `/api/v1/users/:id/set-password` | ADMIN | تعيين كلمة مرور مؤقتة (`{password}`، ≥ 8 أحرف + مدقّقات Django) — يُرفض على مدير آخر؛ يُسجَّل `user.password_set` دون كلمة المرور |
+
+**شكل `GET /api/v1/users/:id/admin-detail`** (للأدمن فقط؛ `date_joined`/`last_login` تظهر هنا فقط):
+
+```json
+{
+  "user": { "id":1, "username":"...", "email":"...", "role":"USER|ADMIN|COMPANY",
+            "rank":"...", "reputation_points":0, "is_active":true,
+            "is_staff":false, "is_superuser":false, "date_joined":"ISO", "last_login":"ISO|null",
+            "bio":"...", "university":"...", "major":"...", "github_username":"...",
+            "profile_visibility":"PUBLIC|PRIVATE", "show_posts":true, "show_code":true,
+            "show_ideas":true, "show_activity":true, "avatar_url":"...", "banner_url":"...", "status_text":"..." },
+  "stats": { "posts":0, "comments":0, "projects":0, "jobs_created":0, "applications":0,
+             "reputation_points":0, "rank":"NOVICE" },
+  "companies": {
+    "items": [ { "id":1, "name":"...", "slug":"...", "status":"PENDING|APPROVED|REJECTED",
+                 "is_verified":false, "follower_count":0, "job_count":0, "created_at":"ISO" } ],
+    "counts": { "PENDING":0, "APPROVED":0, "REJECTED":0 }, "total":0
+  },
+  "memberships": [ { "company_id":1, "name":"...", "slug":"...", "status":"...", "is_verified":false, "role":"OWNER|ADMIN|EMPLOYEE" } ],
+  "recent_activity": [ /* آخر 10 أحداث تدقيق (AuditEvent) للمستخدم */ ]
+}
+```
+
+> ملاحظات: الموافقة على طلب إنشاء شركة تتم عبر مسارات `companies` القائمة (`/companies/:slug/approve|reject|verify`)؛ إنشاء شركة جديدة (`POST /companies`) يبدأ بحالة `PENDING`. تعديل بيانات الشركة من لوحة المستخدم يستخدم `PATCH /companies/:slug` (الأدمن يَعبُر فحص `is_company_manager`).
 
 **ملاحظات أمنية مطبّقة:** الصلاحية الافتراضية أصبحت `IsAuthenticated` (المسارات العامة تعلن
 `AllowAny` صراحةً)؛ `role`/`rank`/`reputation_points`/`is_active` للقراءة فقط في `UserSerializer`؛
