@@ -3,6 +3,8 @@ import { Loader } from '../../../components/ui/Loader';
 import { Badge } from '../../../components/ui/Badge';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
+import { Select } from '../../../components/ui/Select';
+import { DataTable, type Column } from '../../../components/ui/DataTable';
 import { useApplicants, useDeleteJob, useJobs, useSetJobFeatured } from '../useJobs';
 import type { AdminJob } from '../jobService';
 
@@ -97,9 +99,63 @@ const JobsPage = () => {
     setToDelete(null);
   };
 
-  const jobs = data?.results ?? [];
-  const selectClass =
-    'rounded-lg border border-border bg-gray-light px-3 py-2 text-sm text-text outline-none focus:border-accent';
+  const columns: Column<AdminJob>[] = [
+    { key: 'title', header: 'الوظيفة', render: (j) => <span className="font-medium text-text">{j.title}</span> },
+    { key: 'company', header: 'الشركة', render: (j) => <span className="text-text-secondary">{j.company_detail?.name ?? j.company}</span> },
+    { key: 'type', header: 'النوع', render: (j) => <span className="text-text-secondary">{TYPE_LABEL[j.job_type] ?? j.job_type}</span> },
+    {
+      key: 'status',
+      header: 'الحالة',
+      render: (j) => (
+        <Badge variant={STATUS_VARIANT[j.status] ?? 'default'}>{STATUS_LABEL[j.status] ?? j.status}</Badge>
+      ),
+    },
+    {
+      key: 'applicants',
+      header: 'المتقدمون',
+      render: (j) => (
+        <button
+          type="button"
+          onClick={() => setApplicantsJob(j)}
+          className="rounded border border-border px-2 py-1 text-xs text-text hover:border-accent hover:text-accent"
+        >
+          {j.application_count} متقدم
+        </button>
+      ),
+    },
+    {
+      key: 'featured',
+      header: 'مميّزة',
+      render: (j) => (
+        <button
+          type="button"
+          onClick={() => setFeatured.mutate({ id: j.id, isFeatured: !j.is_featured })}
+          disabled={setFeatured.isPending}
+          className={`rounded border px-2 py-1 text-xs disabled:opacity-50 ${
+            j.is_featured
+              ? 'border-accent/50 bg-accent/10 text-accent'
+              : 'border-border text-text-secondary hover:border-accent hover:text-accent'
+          }`}
+        >
+          {j.is_featured ? 'مميّزة ★' : 'تمييز'}
+        </button>
+      ),
+    },
+    { key: 'date', header: 'التاريخ', render: (j) => <span className="whitespace-nowrap text-xs text-text-secondary">{formatDate(j.created_at)}</span> },
+    {
+      key: 'actions',
+      header: 'إجراءات',
+      render: (j) => (
+        <button
+          type="button"
+          onClick={() => setToDelete(j)}
+          className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+        >
+          حذف
+        </button>
+      ),
+    },
+  ];
 
   return (
     <div dir="rtl" className="space-y-6 animate-fade-in">
@@ -110,7 +166,7 @@ const JobsPage = () => {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -122,105 +178,53 @@ const JobsPage = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="بحث بالعنوان أو الشركة..."
-            className="w-56 rounded-lg border border-border bg-gray-light px-3 py-2 text-sm text-text outline-none focus:border-accent"
+            className="w-full min-w-[12rem] rounded-lg border border-border bg-gray-light px-3 py-2 text-sm text-text outline-none focus:border-accent sm:w-56"
           />
           <Button type="submit" variant="secondary" size="sm">
             بحث
           </Button>
         </form>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={selectClass}>
-          <option value="">كل الحالات</option>
-          <option value="PUBLISHED">منشورة</option>
-          <option value="DRAFT">مسودة</option>
-          <option value="CLOSED">مغلقة</option>
-        </select>
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={selectClass}>
-          <option value="">كل الأنواع</option>
-          <option value="PAID">مدفوعة</option>
-          <option value="INTERNSHIP">تدريب</option>
-          <option value="FREELANCE">عمل حر</option>
-        </select>
-        <select value={featuredFilter} onChange={(e) => setFeaturedFilter(e.target.value)} className={selectClass}>
-          <option value="">الكل</option>
-          <option value="true">مميّزة</option>
-          <option value="false">غير مميّزة</option>
-        </select>
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          options={[
+            { value: '', label: 'كل الحالات' },
+            { value: 'PUBLISHED', label: 'منشورة' },
+            { value: 'DRAFT', label: 'مسودة' },
+            { value: 'CLOSED', label: 'مغلقة' },
+          ]}
+        />
+        <Select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          options={[
+            { value: '', label: 'كل الأنواع' },
+            { value: 'PAID', label: 'مدفوعة' },
+            { value: 'INTERNSHIP', label: 'تدريب' },
+            { value: 'FREELANCE', label: 'عمل حر' },
+          ]}
+        />
+        <Select
+          value={featuredFilter}
+          onChange={(e) => setFeaturedFilter(e.target.value)}
+          options={[
+            { value: '', label: 'الكل' },
+            { value: 'true', label: 'مميّزة' },
+            { value: 'false', label: 'غير مميّزة' },
+          ]}
+        />
       </div>
 
-      {isLoading ? (
-        <Loader />
-      ) : isError ? (
+      {isError ? (
         <p className="text-red-400">تعذّر تحميل الوظائف.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-gray-light">
-          <table className="w-full min-w-[840px] text-right text-sm">
-            <thead className="border-b border-border bg-gray text-xs uppercase text-text-secondary">
-              <tr>
-                <th className="px-4 py-3">الوظيفة</th>
-                <th className="px-4 py-3">الشركة</th>
-                <th className="px-4 py-3">النوع</th>
-                <th className="px-4 py-3">الحالة</th>
-                <th className="px-4 py-3">المتقدمون</th>
-                <th className="px-4 py-3">مميّزة</th>
-                <th className="px-4 py-3">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {jobs.map((job) => (
-                <tr key={job.id} className="hover:bg-gray transition-colors">
-                  <td className="px-4 py-3 font-medium text-text">{job.title}</td>
-                  <td className="px-4 py-3 text-text-secondary">{job.company_detail?.name ?? job.company}</td>
-                  <td className="px-4 py-3 text-text-secondary">{TYPE_LABEL[job.job_type] ?? job.job_type}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={STATUS_VARIANT[job.status] ?? 'default'}>
-                      {STATUS_LABEL[job.status] ?? job.status}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setApplicantsJob(job)}
-                      className="rounded border border-border px-2 py-1 text-xs text-text hover:border-accent hover:text-accent"
-                    >
-                      {job.application_count} متقدم
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => setFeatured.mutate({ id: job.id, isFeatured: !job.is_featured })}
-                      disabled={setFeatured.isPending}
-                      className={`rounded border px-2 py-1 text-xs disabled:opacity-50 ${
-                        job.is_featured
-                          ? 'border-accent/50 bg-accent/10 text-accent'
-                          : 'border-border text-text-secondary hover:border-accent hover:text-accent'
-                      }`}
-                    >
-                      {job.is_featured ? 'مميّزة ★' : 'تمييز'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-xs text-text-secondary">
-                    {formatDate(job.created_at)}
-                    <button
-                      type="button"
-                      onClick={() => setToDelete(job)}
-                      className="mr-2 rounded border border-red-500/40 px-2 py-1 text-red-400 hover:bg-red-500/10"
-                    >
-                      حذف
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {jobs.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-text-secondary">
-                    لا توجد وظائف مطابقة.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={data?.results ?? []}
+          keyField={(j) => j.id}
+          loading={isLoading}
+          empty="لا توجد وظائف مطابقة."
+        />
       )}
 
       {applicantsJob && <ApplicantsModal job={applicantsJob} onClose={() => setApplicantsJob(null)} />}

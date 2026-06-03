@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Loader } from '../../../components/ui/Loader';
 import { Badge } from '../../../components/ui/Badge';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
+import { DataTable, type Column } from '../../../components/ui/DataTable';
 import { useDeleteUser, useSetUserBan, useSetUserRole, useUsers } from '../useUsers';
 import type { AdminUser, UserRole } from '../userService';
 import { UserDetailDrawer } from '../components/UserDetailDrawer';
@@ -32,6 +32,55 @@ const UsersPage = () => {
     setToDelete(null);
   };
 
+  const columns: Column<AdminUser>[] = [
+    {
+      key: 'username',
+      header: 'المستخدم',
+      render: (u) => <span className="font-medium text-text">{u.username}</span>,
+    },
+    { key: 'email', header: 'البريد', render: (u) => <span className="text-text-secondary">{u.email}</span> },
+    { key: 'role', header: 'الدور', render: (u) => <Badge variant={roleVariant[u.role]}>{u.role}</Badge> },
+    {
+      key: 'status',
+      header: 'الحالة',
+      render: (u) =>
+        u.is_active ? <Badge variant="success">نشط</Badge> : <Badge variant="danger">محظور</Badge>,
+    },
+    {
+      key: 'actions',
+      header: 'إجراءات',
+      render: (u) => (
+        <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <select
+            value={u.role}
+            onChange={(e) => setRole.mutate({ id: u.id, role: e.target.value as UserRole })}
+            className="rounded border border-border bg-gray px-2 py-1 text-xs text-text outline-none focus:border-accent"
+          >
+            {ROLES.map((role) => (
+              <option key={role} value={role}>
+                {role}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setBan.mutate({ id: u.id, isActive: !u.is_active })}
+            className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:border-accent hover:text-accent"
+          >
+            {u.is_active ? 'حظر' : 'رفع الحظر'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setToDelete(u)}
+            className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+          >
+            حذف
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div dir="rtl" className="space-y-6 animate-fade-in">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -55,84 +104,17 @@ const UsersPage = () => {
         </form>
       </div>
 
-      {isLoading ? (
-        <Loader />
-      ) : isError ? (
+      {isError ? (
         <p className="text-red-400">تعذّر تحميل المستخدمين.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-gray-light">
-          <table className="w-full min-w-[720px] text-right text-sm">
-            <thead className="border-b border-border bg-gray text-xs uppercase text-text-secondary">
-              <tr>
-                <th className="px-4 py-3">المستخدم</th>
-                <th className="px-4 py-3">البريد</th>
-                <th className="px-4 py-3">الدور</th>
-                <th className="px-4 py-3">الحالة</th>
-                <th className="px-4 py-3">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {(users ?? []).map((user) => (
-                <tr
-                  key={user.id}
-                  onClick={() => setSelectedUserId(user.id)}
-                  className="cursor-pointer hover:bg-gray transition-colors"
-                >
-                  <td className="px-4 py-3 font-medium text-text">{user.username}</td>
-                  <td className="px-4 py-3 text-text-secondary">{user.email}</td>
-                  <td className="px-4 py-3">
-                    <Badge variant={roleVariant[user.role]}>{user.role}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    {user.is_active ? (
-                      <Badge variant="success">نشط</Badge>
-                    ) : (
-                      <Badge variant="danger">محظور</Badge>
-                    )}
-                  </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        value={user.role}
-                        onChange={(e) =>
-                          setRole.mutate({ id: user.id, role: e.target.value as UserRole })
-                        }
-                        className="rounded border border-border bg-gray px-2 py-1 text-xs text-text outline-none focus:border-accent"
-                      >
-                        {ROLES.map((role) => (
-                          <option key={role} value={role}>
-                            {role}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => setBan.mutate({ id: user.id, isActive: !user.is_active })}
-                        className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:border-accent hover:text-accent"
-                      >
-                        {user.is_active ? 'حظر' : 'رفع الحظر'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setToDelete(user)}
-                        className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
-                      >
-                        حذف
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {(users ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-text-secondary">
-                    لا يوجد مستخدمون مطابقون.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={columns}
+          rows={users ?? []}
+          keyField={(u) => u.id}
+          onRowClick={(u) => setSelectedUserId(u.id)}
+          loading={isLoading}
+          empty="لا يوجد مستخدمون مطابقون."
+        />
       )}
 
       <Modal isOpen={!!toDelete} onClose={() => setToDelete(null)} title="تأكيد الحذف">

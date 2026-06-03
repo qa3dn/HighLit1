@@ -21,7 +21,7 @@ const ROLE_STYLES: Record<UserRole, string> = {
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.userAgent);
 
-export const Navbar: React.FC = () => {
+export const Navbar: React.FC<{ onMenuClick?: () => void }> = ({ onMenuClick }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
@@ -62,6 +62,7 @@ export const Navbar: React.FC = () => {
         <button
           type="button"
           aria-label="فتح القائمة"
+          onClick={onMenuClick}
           className="md:hidden p-2 text-text-secondary hover:text-text hover:bg-gray-light rounded-lg transition-colors"
         >
           <Menu className="w-5 h-5" />

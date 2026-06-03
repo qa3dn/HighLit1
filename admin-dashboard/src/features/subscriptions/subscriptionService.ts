@@ -33,12 +33,24 @@ interface Paginated<T> {
   results: T[];
 }
 
-export async function listSubscriptions(status?: string) {
+export interface SubscriptionPage {
+  results: CompanySubscription[];
+  count: number;
+  hasMore: boolean;
+}
+
+export async function listSubscriptions(
+  params: { status?: string; page?: number } = {},
+): Promise<SubscriptionPage> {
+  const query: Record<string, string | number> = {};
+  if (params.status) query.status = params.status;
+  if (params.page) query.page = params.page;
   const { data } = await client.get<Paginated<CompanySubscription> | CompanySubscription[]>(
     '/companies/subscriptions',
-    { params: status ? { status } : {} },
+    { params: query },
   );
-  return Array.isArray(data) ? data : data.results;
+  if (Array.isArray(data)) return { results: data, count: data.length, hasMore: false };
+  return { results: data.results, count: data.count, hasMore: Boolean(data.next) };
 }
 
 export async function activateSubscription(id: number, note?: string) {

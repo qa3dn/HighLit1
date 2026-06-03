@@ -1,11 +1,12 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
-import { X, User, Building2, Wrench, Activity, BadgeCheck } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { User, Building2, Wrench, Activity, BadgeCheck } from 'lucide-react';
 import { Badge } from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
 import { Input } from '../../../components/ui/Input';
 import { Loader } from '../../../components/ui/Loader';
 import { StatCard } from '../../../components/ui/StatCard';
+import { Drawer } from '../../../components/ui/Drawer';
+import { Tabs, type TabItem } from '../../../components/ui/Tabs';
 import type {
   UserAdminDetail,
   UserAdminDetailUser,
@@ -56,7 +57,7 @@ function errorMessage(e: unknown, fallback = 'حدث خطأ. حاول مرة أ�
 }
 
 type TabKey = 'overview' | 'companies' | 'actions' | 'activity';
-const TABS: { key: TabKey; label: string; icon: typeof User }[] = [
+const TABS: TabItem<TabKey>[] = [
   { key: 'overview', label: 'نظرة عامة', icon: User },
   { key: 'companies', label: 'الشركات', icon: Building2 },
   { key: 'actions', label: 'إجراءات', icon: Wrench },
@@ -70,57 +71,25 @@ interface DrawerProps {
   onClose: () => void;
 }
 
-export const UserDetailDrawer = ({ userId, onClose }: DrawerProps) => {
-  if (userId == null) return null;
-  return createPortal(<DrawerBody userId={userId} onClose={onClose} />, document.body);
-};
+export const UserDetailDrawer = ({ userId, onClose }: DrawerProps) => (
+  <Drawer open={userId != null} onClose={onClose} title="تفاصيل المستخدم">
+    {userId != null && <DrawerBody userId={userId} />}
+  </Drawer>
+);
 
-const DrawerBody = ({ userId, onClose }: { userId: number; onClose: () => void }) => {
+const DrawerBody = ({ userId }: { userId: number }) => {
   const { data, isLoading, isError } = useUserAdminDetail(userId);
-
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = 'unset';
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-bg/80 backdrop-blur-md" onClick={onClose} />
-      <aside
-        dir="rtl"
-        className="absolute inset-y-0 left-0 flex w-full max-w-xl flex-col border-r border-border bg-gray shadow-large animate-fade-in"
-      >
-        <div className="flex shrink-0 items-center justify-between border-b border-border p-4">
-          <h2 className="text-lg font-bold text-text">تفاصيل المستخدم</h2>
-          <button
-            type="button"
-            aria-label="إغلاق"
-            onClick={onClose}
-            className="rounded-lg p-2 text-text-secondary transition-colors hover:bg-gray-light hover:text-text"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {isLoading ? (
-          <div className="p-8">
-            <Loader />
-          </div>
-        ) : isError || !data ? (
-          <p className="p-8 text-red-400">تعذّر تحميل تفاصيل المستخدم.</p>
-        ) : (
-          <DrawerInner userId={userId} detail={data} />
-        )}
-      </aside>
-    </div>
-  );
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <Loader />
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return <p className="p-8 text-red-400">تعذّر تحميل تفاصيل المستخدم.</p>;
+  }
+  return <DrawerInner userId={userId} detail={data} />;
 };
 
 const DrawerInner = ({ userId, detail }: { userId: number; detail: UserAdminDetail }) => {
@@ -129,7 +98,7 @@ const DrawerInner = ({ userId, detail }: { userId: number; detail: UserAdminDeta
   const initial = (u.username || u.email || 'U').charAt(0).toUpperCase();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div>
       {/* Profile header */}
       <div className="flex items-start gap-4 border-b border-border p-5">
         {u.avatar_url ? (
@@ -155,30 +124,12 @@ const DrawerInner = ({ userId, detail }: { userId: number; detail: UserAdminDeta
       </div>
 
       {/* Tabs */}
-      <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-border px-3">
-        {TABS.map((t) => {
-          const Icon = t.icon;
-          const active = tab === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors ${
-                active
-                  ? 'border-accent text-accent'
-                  : 'border-transparent text-text-secondary hover:text-text'
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {t.label}
-            </button>
-          );
-        })}
+      <div className="px-3">
+        <Tabs tabs={TABS} active={tab} onChange={setTab} />
       </div>
 
       {/* Tab body */}
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="p-5">
         {tab === 'overview' && <OverviewTab detail={detail} />}
         {tab === 'companies' && (
           <CompaniesTab userId={userId} companies={detail.companies} memberships={detail.memberships} />

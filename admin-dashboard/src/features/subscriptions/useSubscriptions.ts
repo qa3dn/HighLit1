@@ -5,10 +5,10 @@ import {
   rejectSubscription,
 } from './subscriptionService';
 
-export function useSubscriptions(status?: string) {
+export function useSubscriptions(status: string, page: number) {
   return useQuery({
-    queryKey: ['admin-subscriptions', status ?? ''],
-    queryFn: () => listSubscriptions(status),
+    queryKey: ['admin-subscriptions', status, page],
+    queryFn: () => listSubscriptions({ status: status || undefined, page }),
   });
 }
 
