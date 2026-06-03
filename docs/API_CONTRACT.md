@@ -251,6 +251,13 @@
 | GET/PATCH/DELETE | `/api/v1/companies/admin/plans/:id` | ADMIN | عرض/تعديل/حذف باقة (الحذف يُرفض إن كانت مرتبطة باشتراكات) — `plan.updated`/`plan.deleted` |
 | GET/POST | `/api/v1/companies/admin/promo-codes` | ADMIN | أكواد الخصم (campaigns): `code`, `discount_type` (PERCENT/FIXED), `amount`, `plan?`, `valid_from?`, `valid_until?`, `max_uses?`, `is_active` — `is_redeemable` محسوب |
 | GET/PATCH/DELETE | `/api/v1/companies/admin/promo-codes/:id` | ADMIN | عرض/تعديل/حذف كود خصم — `promocode.created`/`updated`/`deleted` |
+| GET | `/api/v1/companies/admin/invoices` | ADMIN | الفواتير (فلتر `status`/`company`) — مرقّمة؛ تشمل `payments[]` |
+| GET | `/api/v1/companies/admin/invoices/:id` | ADMIN | تفاصيل فاتورة + المدفوعات |
+| POST | `/api/v1/companies/admin/invoices/:id/pay` | ADMIN | تسوية يدوية (`idempotency_key` اختياري) → PAID — يُسجَّل `invoice.paid` |
+| POST | `/api/v1/companies/admin/invoices/:id/void` | ADMIN | إبطال فاتورة مفتوحة — `invoice.voided` |
+| POST | `/api/v1/companies/billing/webhook?gateway=CLIQ\|CLICK` | توقيع HMAC | استقبال إشعار الدفع — يتحقّق من التوقيع (`CLIQ_WEBHOOK_SECRET`)؛ **fail‑closed** بلا سر؛ idempotent عبر `event_id` |
+
+> **الفوترة:** تفعيل اشتراك بباقة مدفوعة (`price>0`) يُنشئ فاتورة `OPEN` تلقائياً (يقبل `promo_code` للخصم). التسوية يدوية الآن (`/pay`) أو عبر webhook موقّع. المال `Decimal` بعملة الباقة (JOD). التسوية ذرّية (`select_for_update`) و idempotent عبر `Payment.idempotency_key` الفريد. أفعال التدقيق: `invoice.paid`/`invoice.voided`.
 
 ## 12. الإدارة والتدقيق — `moderation` / `audit` (ADMIN فقط)
 

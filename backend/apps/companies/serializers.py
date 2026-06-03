@@ -8,6 +8,8 @@ from .models import (
     CompanyPost,
     CompanyPostComment,
     CompanySubscription,
+    Invoice,
+    Payment,
     PromoCode,
     SubscriptionPlan,
 )
@@ -179,6 +181,55 @@ class PromoCodeSerializer(serializers.ModelSerializer):
 
     def get_is_redeemable(self, obj) -> bool:
         return obj.is_redeemable()
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True, default=None)
+
+    class Meta:
+        model = Payment
+        fields = (
+            "id",
+            "amount",
+            "currency",
+            "gateway",
+            "gateway_ref",
+            "status",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "settled_at",
+        )
+        read_only_fields = fields
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    company_slug = serializers.CharField(source="company.slug", read_only=True)
+    promo_code_label = serializers.CharField(source="promo_code.code", read_only=True, default=None)
+    payments = PaymentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Invoice
+        fields = (
+            "id",
+            "company",
+            "company_name",
+            "company_slug",
+            "subscription",
+            "description",
+            "amount",
+            "discount_amount",
+            "total",
+            "currency",
+            "promo_code",
+            "promo_code_label",
+            "status",
+            "created_at",
+            "paid_at",
+            "payments",
+        )
+        read_only_fields = fields
 
 
 class CompanySubscriptionSerializer(serializers.ModelSerializer):

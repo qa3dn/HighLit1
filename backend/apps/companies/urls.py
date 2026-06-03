@@ -2,13 +2,18 @@ from django.urls import path
 
 from .views import (
     AdminCompanyListView,
+    AdminInvoiceDetailView,
+    AdminInvoiceListView,
     AdminPlanDetailView,
     AdminPlanListCreateView,
     AdminPromoCodeDetailView,
     AdminPromoCodeListCreateView,
+    AdminRecordPaymentView,
     AdminSubscriptionActivateView,
     AdminSubscriptionListView,
     AdminSubscriptionRejectView,
+    AdminVoidInvoiceView,
+    PaymentWebhookView,
     CompanyAnalyticsView,
     CompanyApproveView,
     CompanyDetailView,
@@ -42,6 +47,12 @@ urlpatterns = [
     path("admin/plans/<int:pk>", AdminPlanDetailView.as_view()),
     path("admin/promo-codes", AdminPromoCodeListCreateView.as_view()),
     path("admin/promo-codes/<int:pk>", AdminPromoCodeDetailView.as_view()),
+    # Billing: invoices + manual settlement + gateway webhook.
+    path("admin/invoices", AdminInvoiceListView.as_view()),
+    path("admin/invoices/<int:pk>", AdminInvoiceDetailView.as_view()),
+    path("admin/invoices/<int:pk>/pay", AdminRecordPaymentView.as_view()),
+    path("admin/invoices/<int:pk>/void", AdminVoidInvoiceView.as_view()),
+    path("billing/webhook", PaymentWebhookView.as_view()),
     # Admin company-approval queue.
     path("admin/list", AdminCompanyListView.as_view()),
     # Post-scoped routes use a numeric id and are declared before the slug

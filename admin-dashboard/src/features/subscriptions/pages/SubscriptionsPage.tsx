@@ -10,12 +10,14 @@ import { useActivateSubscription, useRejectSubscription, useSubscriptions } from
 import type { CompanySubscription } from '../subscriptionService';
 import PlansTab from '../components/PlansTab';
 import PromoCodesTab from '../components/PromoCodesTab';
+import InvoicesTab from '../components/InvoicesTab';
 
-type Tab = 'requests' | 'plans' | 'promos';
+type Tab = 'requests' | 'plans' | 'promos' | 'invoices';
 const TABS: TabItem<Tab>[] = [
   { key: 'requests', label: 'الطلبات' },
   { key: 'plans', label: 'الباقات' },
   { key: 'promos', label: 'أكواد الخصم' },
+  { key: 'invoices', label: 'الفواتير' },
 ];
 
 const STATUS_LABEL: Record<string, string> = {
@@ -171,6 +173,7 @@ const SubscriptionsPage = () => {
       {tab === 'requests' && <RequestsTab />}
       {tab === 'plans' && <PlansTab />}
       {tab === 'promos' && <PromoCodesTab />}
+      {tab === 'invoices' && <InvoicesTab />}
     </div>
   );
 };

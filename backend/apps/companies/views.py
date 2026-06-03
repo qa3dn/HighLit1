@@ -17,6 +17,7 @@ from apps.posts.models import Job
 from apps.posts.serializers import JobSerializer
 from common.pagination import DefaultPagination
 from common.permissions import IsAdmin
+from .gateways import GatewayError, get_gateway
 from .models import (
     Company,
     CompanyFollow,
@@ -26,6 +27,8 @@ from .models import (
     CompanyPostComment,
     CompanyPostReaction,
     CompanySubscription,
+    Invoice,
+    Payment,
     PromoCode,
     SubscriptionPlan,
 )
@@ -38,10 +41,17 @@ from .serializers import (
     CompanyPostSerializer,
     CompanySerializer,
     CompanySubscriptionSerializer,
+    InvoiceSerializer,
     PromoCodeSerializer,
     SubscriptionPlanSerializer,
 )
-from .services import active_job_count, active_subscription, plan_limits
+from .services import (
+    active_job_count,
+    active_subscription,
+    create_subscription_invoice,
+    plan_limits,
+    settle_invoice,
+)
 
 User = get_user_model()
 
@@ -505,6 +515,18 @@ class AdminSubscriptionActivateView(APIView):
             payload={"company": sub.company.slug, "plan": sub.plan.tier},
             request=request,
         )
+        # Open an invoice for paid plans (settled manually or via the gateway
+        # webhook). An optional promo code applies a discount.
+        from decimal import Decimal
+
+        if Decimal(sub.plan.price) > 0:
+            promo = None
+            code = (request.data.get("promo_code") or "").strip()
+            if code:
+                candidate = PromoCode.objects.filter(code=code).first()
+                if candidate and candidate.is_redeemable() and candidate.plan_id in (None, sub.plan_id):
+                    promo = candidate
+            create_subscription_invoice(sub, promo)
         return Response(CompanySubscriptionSerializer(sub).data)
 
 
@@ -610,3 +632,109 @@ class AdminPromoCodeDetailView(generics.RetrieveUpdateDestroyAPIView):
             target_id=str(instance.id), payload={"code": instance.code}, request=self.request,
         )
         instance.delete()
+
+
+# ── Billing: invoices, manual settlement, gateway webhook ────────────────────
+
+
+class AdminInvoiceListView(generics.ListAPIView):
+    serializer_class = InvoiceSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = DefaultPagination
+
+    def get_queryset(self):
+        qs = Invoice.objects.select_related("company", "promo_code").prefetch_related("payments")
+        status_param = self.request.query_params.get("status")
+        company = self.request.query_params.get("company")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        if company:
+            qs = qs.filter(company__slug=company)
+        return qs.order_by("-created_at")
+
+
+class AdminInvoiceDetailView(generics.RetrieveAPIView):
+    serializer_class = InvoiceSerializer
+    permission_classes = [IsAdmin]
+    queryset = Invoice.objects.select_related("company", "promo_code").prefetch_related("payments")
+
+
+class AdminRecordPaymentView(APIView):
+    """Manual settlement — an admin marks an OPEN invoice paid. Idempotent via an
+    optional client-supplied key (otherwise generated)."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        invoice = get_object_or_404(Invoice, pk=pk)
+        if invoice.status == Invoice.Status.VOID:
+            return Response({"detail": "الفاتورة ملغاة."}, status=status.HTTP_400_BAD_REQUEST)
+        key = request.data.get("idempotency_key") or f"manual-{invoice.id}-{uuid.uuid4().hex}"
+        _, created = settle_invoice(
+            invoice.id,
+            amount=invoice.total,
+            gateway=Payment.Gateway.MANUAL,
+            idempotency_key=key,
+            created_by=request.user,
+        )
+        if created:
+            record_event(
+                request.user, "invoice.paid", target_type="invoice", target_id=str(invoice.id),
+                payload={"gateway": "MANUAL", "amount": str(invoice.total)}, request=request,
+            )
+        invoice.refresh_from_db()
+        return Response(InvoiceSerializer(invoice).data)
+
+
+class AdminVoidInvoiceView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        invoice = get_object_or_404(Invoice, pk=pk)
+        if invoice.status == Invoice.Status.PAID:
+            return Response({"detail": "لا يمكن إبطال فاتورة مدفوعة."}, status=status.HTTP_400_BAD_REQUEST)
+        invoice.status = Invoice.Status.VOID
+        invoice.save(update_fields=["status"])
+        record_event(
+            request.user, "invoice.voided", target_type="invoice", target_id=str(invoice.id), request=request
+        )
+        return Response(InvoiceSerializer(invoice).data)
+
+
+class PaymentWebhookView(APIView):
+    """Gateway → platform. Authenticated by the provider's HMAC signature (not
+    DRF auth). Idempotent: a re-delivered event settles at most once."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes: list = []
+
+    def post(self, request):
+        try:
+            gateway = get_gateway(request.query_params.get("gateway", "CLIQ"))
+            event = gateway.verify_webhook(request.headers, request.body)
+        except GatewayError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if event.get("status") != "SUCCEEDED":
+            return Response({"ok": True, "ignored": True})
+        invoice_id, key = event.get("invoice_id"), event.get("idempotency_key")
+        if not invoice_id or not key:
+            return Response({"detail": "missing invoice_id or event id"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            invoice = Invoice.objects.get(pk=invoice_id)
+        except Invoice.DoesNotExist:
+            return Response({"detail": "unknown invoice"}, status=status.HTTP_404_NOT_FOUND)
+        _, created = settle_invoice(
+            invoice.id,
+            amount=event.get("amount") or invoice.total,
+            gateway=gateway.name,
+            idempotency_key=key,
+            gateway_ref=event.get("gateway_ref", ""),
+            raw=event,
+        )
+        if created:
+            record_event(
+                None, "invoice.paid", target_type="invoice", target_id=str(invoice.id),
+                payload={"gateway": gateway.name}, request=request,
+            )
+        return Response({"ok": True})

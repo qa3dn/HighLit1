@@ -151,3 +151,74 @@ export async function updatePromoCode(id: number, patch: PromoPatch) {
 export async function deletePromoCode(id: number) {
   await client.delete(`/companies/admin/promo-codes/${id}`);
 }
+
+// ── Invoices & payments (admin billing) ──────────────────────────────────────
+
+export interface Payment {
+  id: number;
+  amount: string;
+  currency: string;
+  gateway: string;
+  gateway_ref: string;
+  status: string;
+  created_by_username: string | null;
+  created_at: string;
+  settled_at: string | null;
+}
+
+export interface Invoice {
+  id: number;
+  company: number;
+  company_name: string;
+  company_slug: string;
+  subscription: number | null;
+  description: string;
+  amount: string;
+  discount_amount: string;
+  total: string;
+  currency: string;
+  promo_code: number | null;
+  promo_code_label: string | null;
+  status: 'OPEN' | 'PAID' | 'VOID';
+  created_at: string;
+  paid_at: string | null;
+  payments: Payment[];
+}
+
+export interface InvoicePage {
+  results: Invoice[];
+  count: number;
+  hasMore: boolean;
+}
+
+interface DrfPage<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export async function listInvoices(params: { status?: string; company?: string; page?: number } = {}) {
+  const query: Record<string, string | number> = {};
+  if (params.status) query.status = params.status;
+  if (params.company) query.company = params.company;
+  if (params.page) query.page = params.page;
+  const { data } = await client.get<DrfPage<Invoice> | Invoice[]>('/companies/admin/invoices', {
+    params: query,
+  });
+  if (Array.isArray(data)) return { results: data, count: data.length, hasMore: false };
+  return { results: data.results, count: data.count, hasMore: Boolean(data.next) };
+}
+
+export async function payInvoice(id: number) {
+  // Stable key per invoice → repeated clicks settle at most once.
+  const { data } = await client.post<Invoice>(`/companies/admin/invoices/${id}/pay`, {
+    idempotency_key: `manual-${id}`,
+  });
+  return data;
+}
+
+export async function voidInvoice(id: number) {
+  const { data } = await client.post<Invoice>(`/companies/admin/invoices/${id}/void`, {});
+  return data;
+}

@@ -6,11 +6,14 @@ import {
   deletePlan,
   deletePromoCode,
   listAdminPlans,
+  listInvoices,
   listPromoCodes,
   listSubscriptions,
+  payInvoice,
   rejectSubscription,
   updatePlan,
   updatePromoCode,
+  voidInvoice,
   type PlanPatch,
   type PromoPatch,
 } from './subscriptionService';
@@ -95,5 +98,30 @@ export function useDeletePromoCode() {
   return useMutation({
     mutationFn: (id: number) => deletePromoCode(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-promo-codes'] }),
+  });
+}
+
+// ── Invoices ─────────────────────────────────────────────────────────────────
+
+export function useInvoices(status: string, page: number) {
+  return useQuery({
+    queryKey: ['admin-invoices', status, page],
+    queryFn: () => listInvoices({ status: status || undefined, page }),
+  });
+}
+
+export function usePayInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => payInvoice(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-invoices'] }),
+  });
+}
+
+export function useVoidInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => voidInvoice(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-invoices'] }),
   });
 }

@@ -278,3 +278,86 @@ class PromoCode(models.Model):
         if self.max_uses is not None and self.used_count >= self.max_uses:
             return False
         return True
+
+
+class Invoice(models.Model):
+    """A bill for a subscription (or campaign). Money is Decimal in the plan's
+    currency. `total` is the net payable after any promo discount."""
+
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        PAID = "PAID", "Paid"
+        VOID = "VOID", "Void"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="invoices")
+    subscription = models.ForeignKey(
+        CompanySubscription,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invoices",
+    )
+    description = models.CharField(max_length=200, blank=True, default="")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=8, default="JOD")
+    promo_code = models.ForeignKey(
+        PromoCode, null=True, blank=True, on_delete=models.SET_NULL, related_name="invoices"
+    )
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.OPEN)
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["company", "status"], name="invoice_comp_status_idx"),
+            models.Index(fields=["status"], name="invoice_status_idx"),
+        ]
+
+    def __str__(self):
+        return f"Invoice #{self.pk} ({self.total} {self.currency})"
+
+
+class Payment(models.Model):
+    """A settlement record against an invoice. `idempotency_key` is unique so a
+    retried manual settle or a re-delivered webhook is a no-op (DB-enforced)."""
+
+    class Gateway(models.TextChoices):
+        MANUAL = "MANUAL", "Manual"
+        CLIQ = "CLIQ", "CliQ"
+        CLICK = "CLICK", "Click"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SUCCEEDED = "SUCCEEDED", "Succeeded"
+        FAILED = "FAILED", "Failed"
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=8, default="JOD")
+    gateway = models.CharField(max_length=10, choices=Gateway.choices, default=Gateway.MANUAL)
+    gateway_ref = models.CharField(max_length=128, blank=True, default="")
+    idempotency_key = models.CharField(max_length=128, unique=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    raw = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="recorded_payments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    settled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["invoice"], name="payment_invoice_idx"),
+            models.Index(fields=["status"], name="payment_status_idx"),
+        ]
+
+    def __str__(self):
+        return f"Payment #{self.pk} {self.status} ({self.gateway})"
