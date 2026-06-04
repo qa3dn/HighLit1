@@ -306,6 +306,10 @@ class Invoice(models.Model):
         PromoCode, null=True, blank=True, on_delete=models.SET_NULL, related_name="invoices"
     )
     status = models.CharField(max_length=8, choices=Status.choices, default=Status.OPEN)
+    # Click/CliQ transfer evidence submitted by the company (verified by an admin
+    # before activation).
+    transfer_reference = models.CharField(max_length=128, blank=True, default="")
+    proof_url = models.URLField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     paid_at = models.DateTimeField(null=True, blank=True)
 

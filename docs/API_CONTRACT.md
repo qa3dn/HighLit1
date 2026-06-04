@@ -242,8 +242,9 @@
 | الطريقة | المسار | مصادقة | الوصف |
 |---------|--------|--------|--------|
 | GET | `/api/v1/companies/plans` | عام | الباقات المتاحة |
-| GET | `/api/v1/companies/:slug/subscription` | للمدير | الباقة الحالية + الطلب المعلّق + الحدود + الاستخدام |
-| POST | `/api/v1/companies/:slug/subscription` | للمدير | طلب باقة (`plan_id`) → PENDING — **409** إن وُجد طلب معلّق |
+| GET | `/api/v1/companies/:slug/subscription` | للمدير | الباقة الحالية + الطلب المعلّق + الحدود + الاستخدام + `payment_info` (حساب Click للتحويل) |
+| POST | `/api/v1/companies/:slug/subscription/quote` | للمدير | معاينة السعر: `{plan_id, promo_code?}` → `{amount, discount, total, currency, promo_applied, promo_message?}` |
+| POST | `/api/v1/companies/:slug/subscription` | للمدير | طلب باقة `{plan_id, promo_code?, transfer_reference?, proof_url?}` → PENDING + فاتورة `OPEN` (للمدفوعة) تحمل إثبات التحويل — **409** إن وُجد طلب معلّق. موافقة الأدمن (تفعيل) تُسوّي الفاتورة وتُنشئ دفعة `CLICK` |
 | GET | `/api/v1/companies/subscriptions` | ADMIN | كل الطلبات (فلتر `status`) — مرقّم |
 | POST | `/api/v1/companies/subscriptions/:id/activate` | ADMIN | تفعيل (ACTIVE + تاريخ انتهاء؛ يلغي الاشتراك النشط السابق) |
 | POST | `/api/v1/companies/subscriptions/:id/reject` | ADMIN | رفض (`note`) |

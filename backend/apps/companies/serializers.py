@@ -225,6 +225,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
             "currency",
             "promo_code",
             "promo_code_label",
+            "transfer_reference",
+            "proof_url",
             "status",
             "created_at",
             "paid_at",

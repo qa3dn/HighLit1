@@ -51,7 +51,9 @@ from .services import (
     active_job_count,
     active_subscription,
     create_subscription_invoice,
+    payment_info,
     plan_limits,
+    quote_plan,
     settle_invoice,
 )
 
@@ -424,6 +426,17 @@ class SubscriptionPlanListView(generics.ListAPIView):
         return SubscriptionPlan.objects.filter(is_active=True)
 
 
+def _resolve_promo(code, plan):
+    """Return a redeemable PromoCode that applies to `plan`, or None."""
+    code = (code or "").strip()
+    if not code:
+        return None
+    promo = PromoCode.objects.filter(code=code).first()
+    if promo and promo.is_redeemable() and promo.plan_id in (None, plan.id):
+        return promo
+    return None
+
+
 class CompanySubscriptionView(APIView):
     """A company manager's view of their plan + usage, and where they request
     a new plan (creates a PENDING subscription for an admin to activate)."""
@@ -445,6 +458,7 @@ class CompanySubscriptionView(APIView):
                 "pending": CompanySubscriptionSerializer(pending).data if pending else None,
                 "limits": plan_limits(company),
                 "usage": {"active_jobs": active_job_count(company)},
+                "payment_info": payment_info(),
             }
         )
 
@@ -458,12 +472,24 @@ class CompanySubscriptionView(APIView):
             return Response(
                 {"detail": "لديك طلب اشتراك قيد المراجعة بالفعل."}, status=status.HTTP_409_CONFLICT
             )
+        promo = _resolve_promo(request.data.get("promo_code"), plan)
         sub = CompanySubscription.objects.create(
             company=company,
             plan=plan,
             requested_by=request.user,
             status=CompanySubscription.Status.PENDING,
         )
+        # For paid plans, open an invoice now (carrying the Click transfer proof);
+        # an admin verifies the proof and activates, which settles it.
+        from decimal import Decimal
+
+        if Decimal(plan.price) > 0:
+            create_subscription_invoice(
+                sub,
+                promo,
+                transfer_reference=(request.data.get("transfer_reference") or "").strip(),
+                proof_url=(request.data.get("proof_url") or "").strip(),
+            )
         record_event(
             request.user,
             "subscription.requested",
@@ -473,6 +499,27 @@ class CompanySubscriptionView(APIView):
             request=request,
         )
         return Response(CompanySubscriptionSerializer(sub).data, status=status.HTTP_201_CREATED)
+
+
+class CompanySubscriptionQuoteView(APIView):
+    """Price preview for a plan + optional promo, so the company knows the exact
+    amount to transfer via Click before submitting proof."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, slug):
+        company = get_object_or_404(Company, slug=slug)
+        _require_manager(request.user, company)
+        plan = get_object_or_404(
+            SubscriptionPlan, pk=request.data.get("plan_id") or request.data.get("plan"), is_active=True
+        )
+        code = (request.data.get("promo_code") or "").strip()
+        promo = _resolve_promo(code, plan)
+        quote = quote_plan(plan, promo)
+        quote["promo_applied"] = promo is not None
+        if code and promo is None:
+            quote["promo_message"] = "كود غير صالح أو غير منطبق على هذه الباقة."
+        return Response(quote)
 
 
 class AdminSubscriptionListView(generics.ListAPIView):
@@ -517,18 +564,23 @@ class AdminSubscriptionActivateView(APIView):
             payload={"company": sub.company.slug, "plan": sub.plan.tier},
             request=request,
         )
-        # Open an invoice for paid plans (settled manually or via the gateway
-        # webhook). An optional promo code applies a discount.
+        # Billing: if the company already opened an invoice (Click flow with
+        # transfer proof), approve/settle it now; otherwise open one for paid plans.
         from decimal import Decimal
 
-        if Decimal(sub.plan.price) > 0:
-            promo = None
-            code = (request.data.get("promo_code") or "").strip()
-            if code:
-                candidate = PromoCode.objects.filter(code=code).first()
-                if candidate and candidate.is_redeemable() and candidate.plan_id in (None, sub.plan_id):
-                    promo = candidate
-            create_subscription_invoice(sub, promo)
+        existing = sub.invoices.filter(status=Invoice.Status.OPEN).order_by("created_at").first()
+        if existing:
+            settle_invoice(
+                existing.id,
+                amount=existing.total,
+                gateway=Payment.Gateway.CLICK,
+                idempotency_key=f"approve-invoice-{existing.id}",
+                gateway_ref=existing.transfer_reference,
+                raw={"proof_url": existing.proof_url, "approved_by": request.user.id},
+                created_by=request.user,
+            )
+        elif Decimal(sub.plan.price) > 0:
+            create_subscription_invoice(sub, _resolve_promo(request.data.get("promo_code"), sub.plan))
         return Response(CompanySubscriptionSerializer(sub).data)
 
 

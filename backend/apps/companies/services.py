@@ -87,8 +87,24 @@ def compute_discount(amount, promo) -> "Decimal":
     return disc.quantize(Decimal("0.01"))
 
 
-def create_subscription_invoice(subscription, promo=None):
-    """Open an invoice for a subscription's plan, applying an optional promo."""
+def quote_plan(plan, promo=None) -> dict:
+    """Price preview for a plan under an optional promo (amount/discount/total)."""
+    from decimal import Decimal
+
+    amount = Decimal(plan.price)
+    discount = compute_discount(amount, promo)
+    total = (amount - discount).quantize(Decimal("0.01"))
+    return {
+        "amount": str(amount.quantize(Decimal("0.01"))),
+        "discount": str(discount),
+        "total": str(total),
+        "currency": plan.currency,
+    }
+
+
+def create_subscription_invoice(subscription, promo=None, *, transfer_reference="", proof_url=""):
+    """Open an invoice for a subscription's plan, applying an optional promo and
+    recording any Click/CliQ transfer evidence the company submitted."""
     from decimal import Decimal
 
     from .models import Invoice
@@ -106,8 +122,25 @@ def create_subscription_invoice(subscription, promo=None):
         total=total,
         currency=plan.currency,
         promo_code=promo if (promo is not None and discount > 0) else None,
+        transfer_reference=transfer_reference or "",
+        proof_url=proof_url or "",
         status=Invoice.Status.OPEN,
     )
+
+
+def payment_info() -> dict:
+    """The Click/CliQ destination shown to companies at checkout (env-driven)."""
+    import os
+
+    return {
+        "provider": os.getenv("PAYMENT_PROVIDER", "Click"),
+        "account_id": os.getenv("PAYMENT_CLICK_ID", "HIGHLIT@CLIQ"),
+        "account_name": os.getenv("PAYMENT_ACCOUNT_NAME", "HighLit"),
+        "instructions": os.getenv(
+            "PAYMENT_INSTRUCTIONS",
+            "حوّل المبلغ عبر تطبيق Click/CliQ إلى الحساب أعلاه، ثم أدخل رقم العملية وأرفق إيصال التحويل.",
+        ),
+    }
 
 
 def settle_invoice(invoice_id, *, amount, gateway, idempotency_key, gateway_ref="", raw=None, created_by=None):
