@@ -51,11 +51,35 @@ export interface PlanLimits {
   allows_featured_jobs: boolean
 }
 
+export interface PaymentInfo {
+  provider: string
+  account_id: string
+  account_name: string
+  instructions: string
+}
+
 export interface SubscriptionInfo {
   current: Subscription | null
   pending: Subscription | null
   limits: PlanLimits
   usage: { active_jobs: number }
+  payment_info?: PaymentInfo
+}
+
+export interface SubscriptionQuote {
+  amount: string
+  discount: string
+  total: string
+  currency: string
+  promo_applied: boolean
+  promo_message?: string
+}
+
+export interface SubscriptionRequest {
+  plan_id: number
+  promo_code?: string
+  transfer_reference?: string
+  proof_url?: string
 }
 
 export interface CompanyInput {
@@ -114,8 +138,25 @@ export async function getSubscription(slug: string): Promise<SubscriptionInfo> {
   return data
 }
 
-export async function requestSubscription(slug: string, planId: number): Promise<Subscription> {
-  const { data } = await api.post(`/companies/${slug}/subscription`, { plan_id: planId })
+export async function quoteSubscription(
+  slug: string,
+  body: { plan_id: number; promo_code?: string },
+): Promise<SubscriptionQuote> {
+  const { data } = await api.post(`/companies/${slug}/subscription/quote`, body)
+  return data
+}
+
+export async function requestSubscription(slug: string, body: SubscriptionRequest): Promise<Subscription> {
+  const { data } = await api.post(`/companies/${slug}/subscription`, body)
+  return data
+}
+
+export async function uploadFile(file: File): Promise<{ url: string }> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const { data } = await api.post('/uploads/file', fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
   return data
 }
 

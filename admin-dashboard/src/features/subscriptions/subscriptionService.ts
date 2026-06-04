@@ -179,6 +179,8 @@ export interface Invoice {
   currency: string;
   promo_code: number | null;
   promo_code_label: string | null;
+  transfer_reference: string;
+  proof_url: string;
   status: 'OPEN' | 'PAID' | 'VOID';
   created_at: string;
   paid_at: string | null;

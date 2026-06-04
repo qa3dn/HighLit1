@@ -49,6 +49,23 @@ const InvoicesTab = () => {
       render: (i) => (i.promo_code_label ? <span className="font-mono text-xs text-accent">{i.promo_code_label}</span> : <span className="text-text-secondary">—</span>),
     },
     {
+      key: 'proof',
+      header: 'إثبات التحويل',
+      render: (i) =>
+        i.transfer_reference || i.proof_url ? (
+          <div className="flex flex-col gap-0.5 text-xs">
+            {i.transfer_reference && <span className="font-mono text-text-secondary">{i.transfer_reference}</span>}
+            {i.proof_url && (
+              <a href={i.proof_url} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                عرض الإيصال
+              </a>
+            )}
+          </div>
+        ) : (
+          <span className="text-text-secondary">—</span>
+        ),
+    },
+    {
       key: 'status',
       header: 'الحالة',
       render: (i) => <Badge variant={STATUS_VARIANT[i.status] ?? 'default'}>{STATUS_LABEL[i.status] ?? i.status}</Badge>,

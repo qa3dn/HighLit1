@@ -7,12 +7,14 @@ import {
   getSubscription,
   listMembers,
   listPlans,
+  quoteSubscription,
   removeMember,
   requestSubscription,
   updateCompany,
   type CompanyInput,
   type CompanyMember,
   type CompanyUpdate,
+  type SubscriptionRequest,
 } from '@/lib/api/companies'
 
 export function useMyCompanies(enabled = true) {
@@ -85,7 +87,13 @@ export function useSubscription(slug: string | undefined) {
 export function useRequestSubscription(slug: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (planId: number) => requestSubscription(slug, planId),
+    mutationFn: (body: SubscriptionRequest) => requestSubscription(slug, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['subscription', slug] }),
+  })
+}
+
+export function useQuoteSubscription(slug: string) {
+  return useMutation({
+    mutationFn: (body: { plan_id: number; promo_code?: string }) => quoteSubscription(slug, body),
   })
 }
