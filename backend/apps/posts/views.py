@@ -560,13 +560,13 @@ class JobApplyView(APIView):
             )
         serializer = JobApplicationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        defaults = {
+            field: value
+            for field, value in serializer.validated_data.items()
+            if field not in ("job", "applicant")
+        }
         application, created = JobApplication.objects.get_or_create(
-            job=job,
-            applicant=request.user,
-            defaults={
-                "cover_letter": serializer.validated_data.get("cover_letter", ""),
-                "resume_url": serializer.validated_data.get("resume_url", ""),
-            },
+            job=job, applicant=request.user, defaults=defaults
         )
         if not created:
             return Response(
@@ -610,7 +610,7 @@ class JobApplicantsView(APIView):
 
         if admin:
             data = JobApplicantSerializer(
-                applications, many=True, context={"show_contact": True}
+                applications, many=True, context={"show_contact": True, "job": job}
             ).data
             return Response(
                 {
@@ -628,7 +628,9 @@ class JobApplicantsView(APIView):
         limit = limits["max_visible_applicants"]
         visible = list(applications[:limit])
         data = JobApplicantSerializer(
-            visible, many=True, context={"show_contact": limits["can_view_applicant_contact"]}
+            visible,
+            many=True,
+            context={"show_contact": limits["can_view_applicant_contact"], "job": job},
         ).data
         return Response(
             {

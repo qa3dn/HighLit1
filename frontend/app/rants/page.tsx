@@ -53,11 +53,7 @@ export default function RantsPage() {
     <div className="min-h-screen bg-bg text-text">
       <Header />
       <main className="container mx-auto px-4 py-8">
-        <TopBar
-          onSearch={setSearchQuery}
-          onFilter={() => {}}
-          onCreateRant={handleCreateRant}
-        />
+        <TopBar onSearch={setSearchQuery} onCreateRant={handleCreateRant} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
           <aside className="lg:col-span-3">
@@ -71,6 +67,9 @@ export default function RantsPage() {
               onSortChange={setSort}
               isAuthenticated={isAuthenticated}
               isLoading={feed.isLoading}
+              isError={feed.isError}
+              onRetry={() => feed.refetch()}
+              hasActiveFilters={Boolean(selectedTag || searchQuery)}
               locked={locked}
               remainingLocked={remainingLocked}
               hasMore={!!feed.hasNextPage}

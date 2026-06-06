@@ -47,9 +47,36 @@ export interface JobFilters {
   experience?: Experience | ''
 }
 
+export interface EducationEntry {
+  degree: string
+  field: string
+  institution: string
+  start_year: string
+  end_year: string
+}
+
+export interface ExperienceEntry {
+  title: string
+  company: string
+  start: string
+  end: string
+  description: string
+}
+
 export interface ApplyPayload {
+  full_name?: string
+  headline?: string
+  email?: string
+  phone?: string
+  location?: string
+  photo_url?: string
   cover_letter?: string
   resume_url?: string
+  portfolio_url?: string
+  linkedin_url?: string
+  education?: EducationEntry[]
+  experience?: ExperienceEntry[]
+  skills?: string[]
 }
 
 export type ApplicationStatus = 'PENDING' | 'REVIEWED' | 'SHORTLISTED' | 'REJECTED' | 'ACCEPTED'
@@ -58,8 +85,19 @@ export interface JobApplication {
   id: number
   job: number
   job_detail: { id: number; title: string; company: string }
+  full_name: string
+  headline: string
+  email: string
+  phone: string
+  location: string
+  photo_url: string
   cover_letter: string
   resume_url: string
+  portfolio_url: string
+  linkedin_url: string
+  education: EducationEntry[]
+  experience: ExperienceEntry[]
+  skills: string[]
   status: ApplicationStatus
   created_at: string
 }
@@ -93,8 +131,22 @@ export interface Applicant {
     university?: string
     major?: string
   }
+  full_name: string
+  headline: string
+  email?: string
+  phone?: string
+  location: string
+  photo_url: string
   cover_letter: string
   resume_url: string
+  portfolio_url: string
+  linkedin_url: string
+  education: EducationEntry[]
+  experience: ExperienceEntry[]
+  skills: string[]
+  matched_skills: string[]
+  missing_skills: string[]
+  skill_match: number | null
   status: ApplicationStatus
   created_at: string
 }
@@ -162,9 +214,33 @@ export async function deleteJob(id: number | string): Promise<void> {
   await api.delete(`/jobs/${id}`)
 }
 
+/** Coerce an applicant payload to a complete shape. The backend always returns
+ * these fields, but during a deploy the API and client can briefly disagree (or
+ * an old response may sit in the query cache); defaulting here keeps the UI from
+ * crashing on a missing array rather than masking a logic bug. */
+export function normalizeApplicant(raw: Applicant): Applicant {
+  return {
+    ...raw,
+    full_name: raw.full_name ?? '',
+    headline: raw.headline ?? '',
+    location: raw.location ?? '',
+    photo_url: raw.photo_url ?? '',
+    cover_letter: raw.cover_letter ?? '',
+    resume_url: raw.resume_url ?? '',
+    portfolio_url: raw.portfolio_url ?? '',
+    linkedin_url: raw.linkedin_url ?? '',
+    skills: raw.skills ?? [],
+    matched_skills: raw.matched_skills ?? [],
+    missing_skills: raw.missing_skills ?? [],
+    education: raw.education ?? [],
+    experience: raw.experience ?? [],
+    skill_match: raw.skill_match ?? null,
+  }
+}
+
 export async function getApplicants(jobId: number | string): Promise<ApplicantsResponse> {
   const { data } = await api.get(`/jobs/${jobId}/applicants`)
-  return data
+  return { ...data, results: (data.results ?? []).map(normalizeApplicant) }
 }
 
 export async function updateApplicationStatus(
@@ -172,5 +248,5 @@ export async function updateApplicationStatus(
   status: ApplicationStatus,
 ): Promise<Applicant> {
   const { data } = await api.patch(`/jobs/applications/${appId}`, { status })
-  return data
+  return normalizeApplicant(data)
 }

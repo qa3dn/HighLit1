@@ -46,9 +46,8 @@ export function Footer() {
                     <div className="lg:col-span-4 py-16 lg:pr-12 lg:pl-0 flex flex-col justify-between h-full">
                         <div>
                             <div className="flex items-center gap-3 mb-8">
-                                <div className="w-8 h-8 border border-white/20 flex items-center justify-center bg-white/5">
-                                    <span className="text-accent text-lg font-mono">&gt;_</span>
-                                </div>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src="/highlit-logo.png" alt="HighLit" className="h-10 w-auto" />
                                 <span className="font-mono text-xl tracking-widest">HIGHLIT</span>
                             </div>
                             <p className="text-gray-400 text-sm leading-relaxed max-w-sm">

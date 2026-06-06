@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { useCurrentUser } from '@/hooks/useAuth'
+import { useHasMounted } from '@/hooks/useHasMounted'
 import { useMyCompanies, useSubscription } from '@/hooks/useCompanies'
 import { useMyJobs } from '@/hooks/useJobs'
 import { CreateCompanyForm } from '@/components/company/CreateCompanyForm'
@@ -44,6 +45,7 @@ function Centered({ children }: { children: React.ReactNode }) {
 }
 
 export function CompanyPortal() {
+  const hasMounted = useHasMounted()
   const { data: currentUser, isLoading: userLoading } = useCurrentUser()
   const { data: companies, isLoading: companiesLoading } = useMyCompanies(!!currentUser)
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null)
@@ -55,7 +57,10 @@ export function CompanyPortal() {
   const companyJobs = (allJobs ?? []).filter((j) => j.company_profile === company?.id)
   const { data: sub } = useSubscription(company?.slug)
 
-  if (userLoading) {
+  // Auth lives in client-only state (localStorage token + a query disabled on
+  // the server), so the server can't know it. Render one stable placeholder on
+  // the server and the first client render to avoid a hydration mismatch.
+  if (!hasMounted || userLoading) {
     return <Centered>جارٍ التحميل...</Centered>
   }
   if (!currentUser) {

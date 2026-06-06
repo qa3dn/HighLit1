@@ -22,6 +22,7 @@ export function useJobs(filters: JobFilters) {
     queryKey: ['jobs', filters],
     queryFn: () => listJobs(filters),
     staleTime: 30_000,
+    placeholderData: (prev) => prev,
   })
 }
 

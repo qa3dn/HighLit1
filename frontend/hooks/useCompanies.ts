@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   addMember,
   createCompany,
+  followCompany,
   getCompany,
   getMyCompanies,
   getSubscription,
@@ -10,6 +11,7 @@ import {
   quoteSubscription,
   removeMember,
   requestSubscription,
+  unfollowCompany,
   updateCompany,
   type CompanyInput,
   type CompanyMember,
@@ -45,6 +47,16 @@ export function useCompany(slug: string | undefined) {
     queryKey: ['company', slug],
     queryFn: () => getCompany(slug!),
     enabled: !!slug,
+    staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useFollowCompany(slug: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    // Pass the CURRENT following state; we toggle to the opposite.
+    mutationFn: (isFollowing: boolean) => (isFollowing ? unfollowCompany(slug) : followCompany(slug)),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['company', slug] }),
   })
 }
 

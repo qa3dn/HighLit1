@@ -141,8 +141,27 @@ class JobApplication(models.Model):
     applicant = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="job_applications"
     )
+    # Professional applicant profile captured at apply time. These describe the
+    # candidate as they want the company to see them, independent of their
+    # account profile (which they may not have filled out).
+    full_name = models.CharField(max_length=120, blank=True, default="")
+    headline = models.CharField(max_length=160, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    phone = models.CharField(max_length=40, blank=True, default="")
+    location = models.CharField(max_length=120, blank=True, default="")
+    photo_url = models.URLField(blank=True, default="")
+    # resume_url is the uploaded CV (PDF). cover_letter is the pitch.
     cover_letter = models.TextField(blank=True, default="")
     resume_url = models.URLField(blank=True, default="")
+    portfolio_url = models.URLField(blank=True, default="")
+    linkedin_url = models.URLField(blank=True, default="")
+    # Display-only, never queried/filtered → JSON is appropriate (CLAUDE.md §2).
+    # education: [{degree, field, institution, start_year, end_year}]
+    # experience: [{title, company, start, end, description}]
+    education = models.JSONField(default=list, blank=True)
+    experience = models.JSONField(default=list, blank=True)
+    # skills: ["python", "react", ...] — matched against Job.skills for filtering.
+    skills = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

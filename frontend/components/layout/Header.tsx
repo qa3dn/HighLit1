@@ -13,7 +13,6 @@ import { useRouter } from 'next/navigation'
 const NAV_LINKS = [
   { href: '/rants', label: 'فش غلك', isActive: (p: string) => p === '/rants' },
   { href: '/code', label: 'فرجينا شغلك', isActive: (p: string) => p.startsWith('/code') },
-  { href: '/spaces', label: 'قعدة مبرمجين', isActive: (p: string) => p.startsWith('/spaces') },
   { href: '/jobs', label: 'وين في شغل؟', isActive: (p: string) => p.startsWith('/jobs') },
 ] as const
 
@@ -76,18 +75,37 @@ export function Header() {
 
   const closeMenu = () => setMenuOpen(false)
 
+  const profileShortcut = currentUser ? (
+    <Link
+      href="/profile/me"
+      onClick={() => {
+        playClickSound()
+        closeMenu()
+      }}
+      className="group flex items-center gap-2 rounded-full border border-gray-dark bg-gray-light py-1 pe-3 ps-1 transition-colors hover:border-accent/40"
+      aria-label="ملفي الشخصي"
+    >
+      {currentUser.avatar_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={currentUser.avatar_url}
+          alt={currentUser.username}
+          className="h-7 w-7 rounded-full border border-gray-dark object-cover"
+        />
+      ) : (
+        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-accent/30 bg-accent/10 text-xs font-bold text-accent">
+          {(currentUser.username?.[0] ?? '?').toUpperCase()}
+        </span>
+      )}
+      <span className="truncate text-sm font-medium text-text transition-colors group-hover:text-accent">
+        {currentUser.username}
+      </span>
+    </Link>
+  ) : null
+
   const authBlock = currentUser ? (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
-      <Link
-        href="/profile/me"
-        onClick={() => {
-          playClickSound()
-          closeMenu()
-        }}
-        className="truncate text-sm font-medium text-text hover:text-accent transition-colors"
-      >
-        {currentUser.username}
-      </Link>
+      {profileShortcut}
       <Button
         onClick={() => {
           closeMenu()
@@ -125,15 +143,11 @@ export function Header() {
         <Link
           href="/"
           onClick={playClickSound}
-          className="group flex shrink-0 items-center gap-2.5"
-          dir="ltr"
+          className="flex shrink-0 items-center transition-opacity hover:opacity-80"
+          aria-label="HighLit — الصفحة الرئيسية"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-accent/30 bg-accent/5 font-mono text-sm text-accent shadow-[0_0_20px_rgba(0,255,65,0.15)] transition group-hover:border-accent/50 group-hover:bg-accent/10">
-            &gt;_
-          </span>
-          <span className="text-lg font-bold tracking-tight text-text transition-colors group-hover:text-accent sm:text-xl">
-            HighLit
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/highlit-logo.png" alt="HighLit" className="h-11 w-auto sm:h-12" />
         </Link>
 
         <nav

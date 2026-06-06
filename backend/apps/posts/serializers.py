@@ -259,6 +259,79 @@ class JobCreateSerializer(serializers.ModelSerializer):
         return data
 
 
+MAX_SKILLS = 30
+MAX_SKILL_LENGTH = 40
+MAX_PROFILE_ENTRIES = 12
+EDUCATION_ENTRY_FIELDS = {
+    "degree": 120,
+    "field": 120,
+    "institution": 160,
+    "start_year": 12,
+    "end_year": 12,
+}
+EXPERIENCE_ENTRY_FIELDS = {
+    "title": 120,
+    "company": 160,
+    "start": 40,
+    "end": 40,
+    "description": 1000,
+}
+
+
+def normalize_skill_list(value) -> list:
+    """Trim, de-duplicate (case-insensitive), and cap a list of skill strings."""
+    if not isinstance(value, list):
+        raise serializers.ValidationError("المهارات يجب أن تكون قائمة نصوص.")
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        skill = item.strip()[:MAX_SKILL_LENGTH]
+        key = skill.lower()
+        if skill and key not in seen:
+            seen.add(key)
+            out.append(skill)
+        if len(out) >= MAX_SKILLS:
+            break
+    return out
+
+
+def normalize_profile_entries(value, allowed_fields: dict) -> list:
+    """Coerce a list of dict entries (education/experience) to a fixed shape:
+    only known keys, trimmed to per-field max lengths, empty entries dropped."""
+    if not isinstance(value, list):
+        raise serializers.ValidationError("القيمة يجب أن تكون قائمة.")
+    out: list[dict] = []
+    for raw in value[:MAX_PROFILE_ENTRIES]:
+        if not isinstance(raw, dict):
+            continue
+        entry = {}
+        for key, max_len in allowed_fields.items():
+            field_value = raw.get(key, "")
+            entry[key] = ("" if field_value is None else str(field_value)).strip()[:max_len]
+        if any(entry.values()):
+            out.append(entry)
+    return out
+
+
+APPLICATION_PROFILE_FIELDS = (
+    "full_name",
+    "headline",
+    "email",
+    "phone",
+    "location",
+    "photo_url",
+    "cover_letter",
+    "resume_url",
+    "portfolio_url",
+    "linkedin_url",
+    "education",
+    "experience",
+    "skills",
+)
+
+
 class JobApplicationSerializer(serializers.ModelSerializer):
     """The applicant's own view of an application (and the create shape)."""
 
@@ -266,7 +339,7 @@ class JobApplicationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = JobApplication
-        fields = ("id", "job", "job_detail", "cover_letter", "resume_url", "status", "created_at")
+        fields = ("id", "job", "job_detail", *APPLICATION_PROFILE_FIELDS, "status", "created_at")
         read_only_fields = ("id", "job", "status", "created_at")
 
     def get_job_detail(self, obj):
@@ -280,16 +353,88 @@ class JobApplicationSerializer(serializers.ModelSerializer):
     def validate_cover_letter(self, value: str) -> str:
         return (value or "").strip()[:5000]
 
+    def validate_full_name(self, value: str) -> str:
+        return (value or "").strip()[:120]
+
+    def validate_headline(self, value: str) -> str:
+        return (value or "").strip()[:160]
+
+    def validate_phone(self, value: str) -> str:
+        return (value or "").strip()[:40]
+
+    def validate_location(self, value: str) -> str:
+        return (value or "").strip()[:120]
+
+    def validate_skills(self, value) -> list:
+        return normalize_skill_list(value)
+
+    def validate_education(self, value) -> list:
+        return normalize_profile_entries(value, EDUCATION_ENTRY_FIELDS)
+
+    def validate_experience(self, value) -> list:
+        return normalize_profile_entries(value, EXPERIENCE_ENTRY_FIELDS)
+
 
 class JobApplicantSerializer(serializers.ModelSerializer):
-    """A company/admin's view of one applicant. Contact details are only
-    serialized when the view sets `show_contact` in context (plan-gated)."""
+    """A company/admin's view of one applicant. Contact details (email/phone)
+    are only serialized when the view sets `show_contact` in context
+    (plan-gated). Skill match is computed against the job's required skills."""
 
     applicant = serializers.SerializerMethodField()
+    matched_skills = serializers.SerializerMethodField()
+    missing_skills = serializers.SerializerMethodField()
+    skill_match = serializers.SerializerMethodField()
 
     class Meta:
         model = JobApplication
-        fields = ("id", "applicant", "cover_letter", "resume_url", "status", "created_at")
+        fields = (
+            "id",
+            "applicant",
+            "full_name",
+            "headline",
+            "email",
+            "phone",
+            "location",
+            "photo_url",
+            "cover_letter",
+            "resume_url",
+            "portfolio_url",
+            "linkedin_url",
+            "education",
+            "experience",
+            "skills",
+            "matched_skills",
+            "missing_skills",
+            "skill_match",
+            "status",
+            "created_at",
+        )
+
+    def _job_skills(self, obj) -> list:
+        # Prefer the job passed in context (all applicants share one job in the
+        # list view) so we don't re-query `obj.job` per row.
+        job = self.context.get("job") or obj.job
+        raw = job.skills if isinstance(job.skills, list) else []
+        return [str(s).strip() for s in raw if str(s).strip()]
+
+    def _applicant_skill_keys(self, obj) -> set:
+        raw = obj.skills if isinstance(obj.skills, list) else []
+        return {str(s).strip().lower() for s in raw if str(s).strip()}
+
+    def get_matched_skills(self, obj) -> list:
+        keys = self._applicant_skill_keys(obj)
+        return [s for s in self._job_skills(obj) if s.lower() in keys]
+
+    def get_missing_skills(self, obj) -> list:
+        keys = self._applicant_skill_keys(obj)
+        return [s for s in self._job_skills(obj) if s.lower() not in keys]
+
+    def get_skill_match(self, obj):
+        job_skills = self._job_skills(obj)
+        if not job_skills:
+            return None
+        matched = len(self.get_matched_skills(obj))
+        return round(matched / len(job_skills) * 100)
 
     def get_applicant(self, obj):
         user = obj.applicant
@@ -304,6 +449,15 @@ class JobApplicantSerializer(serializers.ModelSerializer):
             data["github_username"] = getattr(user, "github_username", "")
             data["university"] = getattr(user, "university", "")
             data["major"] = getattr(user, "major", "")
+        return data
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        # Contact channels are plan-gated; hide them unless the viewer's plan
+        # (or admin) unlocked contact details.
+        if not self.context.get("show_contact"):
+            data.pop("email", None)
+            data.pop("phone", None)
         return data
 
 

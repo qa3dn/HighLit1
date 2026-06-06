@@ -94,10 +94,31 @@
 | GET | `/jobs/my-applications` | JWT | طلبات المستخدم الحالي |
 | GET | `/jobs/:id` | لا* | تفاصيل (غير المنشورة تظهر للمدير/الأدمن فقط) — يتضمّن `has_applied`, `application_count` |
 | PATCH/DELETE | `/jobs/:id` | مدير/أدمن | تعديل/إغلاق/حذف الوظيفة |
-| POST | `/jobs/:id/apply` | JWT | تقديم (`cover_letter`, `resume_url`) — **409** عند التكرار، **400** على وظيفة شركتك |
-| GET | `/jobs/:id/applicants` | مدير/أدمن | المتقدمون **مع تطبيق البوّابة**: المدير يرى حتى `max_visible_applicants` (5 مجاناً) + `locked_count`؛ الأدمن يرى الكل |
+| POST | `/jobs/:id/apply` | JWT | تقديم احترافي (انظر شكل الطلب أدناه) — **409** عند التكرار، **400** على وظيفة شركتك |
+| GET | `/jobs/:id/applicants` | مدير/أدمن | المتقدمون **مع تطبيق البوّابة**: المدير يرى حتى `max_visible_applicants` (5 مجاناً) + `locked_count`؛ الأدمن يرى الكل. كل متقدّم يتضمّن `skill_match`/`matched_skills`/`missing_skills` |
 | PATCH | `/jobs/applications/:id` | مدير/أدمن | تغيير حالة الطلب (PENDING/REVIEWED/SHORTLISTED/REJECTED/ACCEPTED) |
 | GET/POST | `/jobs/:id/reviews` | لا / JWT | مراجعات الشركة |
+
+**شكل طلب التقديم (`POST /jobs/:id/apply`)** — كل الحقول اختيارية عدا الاسم والبريد؛
+يُنشئ سجلاً واحداً لكل `(job, applicant)`:
+
+```jsonc
+{
+  "full_name": "string", "headline": "string",
+  "email": "string", "phone": "string", "location": "string",
+  "photo_url": "url",            // صورة شخصية (مرفوعة عبر uploads/file)
+  "resume_url": "url",           // السيرة الذاتية PDF (مرفوعة عبر uploads/file)
+  "portfolio_url": "url", "linkedin_url": "url",
+  "cover_letter": "string",
+  "skills": ["python", "react"], // تُطابَق مع skills المطلوبة في الوظيفة
+  "education":  [{ "degree", "field", "institution", "start_year", "end_year" }],
+  "experience": [{ "title", "company", "start", "end", "description" }]
+}
+```
+
+**شكل المتقدّم لدى الشركة/الأدمن (`GET /jobs/:id/applicants` → `results[]`)** يضيف فوق ما سبق:
+`applicant` (المستخدم)، و`matched_skills`/`missing_skills`/`skill_match` (نسبة المطابقة 0–100 أو `null`
+إن لم تحدّد الوظيفة مهارات). `email` و`phone` يظهران فقط عند فتح بيانات التواصل في الباقة (أو للأدمن).
 
 ---
 
@@ -204,7 +225,7 @@
 
 ### رفع الصور — `uploads`
 
-| POST | `/api/v1/uploads/file` | JWT | حقل `file` — يُرجع `{ "url", "filename", "content_type", "size" }` — حد 5MB، صيغ: jpeg/png/webp/gif |
+| POST | `/api/v1/uploads/file` | JWT | حقل `file` — يُرجع `{ "url", "filename", "content_type", "size", "inline" }` — حد 5MB، صيغ: jpeg/png/webp/gif **+ application/pdf** (للسير الذاتية). يُتحقَّق من النوع عبر فحص البايتات السحرية (magic bytes)، و SVG ممنوع. `inline=true` للصور الآمنة للعرض المباشر |
 
 ### حقول المستخدم (`auth/me`)
 
@@ -428,3 +449,4 @@ GitHub: بيانات عامة فقط (لا OAuth/رموز) واسم المستخ
 | 2026-05-21 | لوحة إدارة المحتوى: قائمة/بحث/فلترة المنشورات والتعليقات + إخفاء/إظهار (`is_hidden`) + حذف نهائي + تدقيق؛ المحتوى المخفي يُستبعَد من المسارات العامة | — |
 | 2026-05-22 | محرّك التوظيف (backend): توسعة Job (أنواع/حالة/مميّز) + JobApplication + باقات اشتراك (FREE/BASIC/PRO/ENTERPRISE) + بوّابة المتقدمين (5 مجاناً) + طلب/تفعيل الاشتراك عبر الأدمن. الواجهات لاحقاً | — |
 | 2026-05-22 | واجهات التوظيف: صفحة الوظائف العامة (بحث/فلترة + تقديم) + بوابة الشركة (نشر وظائف + متابعة المتقدمين بالبوّابة + الاشتراك) + لوحة الأدمن (إشراف الوظائف + تمييز + طابور موافقة الاشتراكات) | — |
+| 2026-06-04 | نظام تقديم احترافي: توسعة `JobApplication` (اسم/مسمّى/هاتف/موقع/صورة/تعليم/خبرات/مهارات/روابط) + مطابقة المهارات مع متطلبات الوظيفة (`skill_match`) + رفع PDF للسيرة الذاتية (فحص magic-byte) + نموذج تقديم غني + عرض احترافي لدى الشركة والأدمن | — |

@@ -35,35 +35,35 @@ export function RoomNavigation({
   )
 
   return (
-    <div className="w-64 bg-bg border-r border-gray h-full flex flex-col">
-      <div className="p-4 border-b border-gray">
-        <h2 className="text-accent font-mono text-sm font-bold">أغراضي</h2>
+    <div className="w-full lg:w-60 lg:flex-shrink-0">
+      <div className="rounded-2xl border border-gray-dark bg-gray-light lg:sticky lg:top-20">
+        <div className="hidden border-b border-gray-dark p-4 lg:block">
+          <h2 className="font-mono text-sm font-bold text-accent">أغراضي</h2>
+        </div>
+        <nav className="p-2">
+          <ul className="flex gap-1 overflow-x-auto lg:flex-col lg:space-y-1 lg:overflow-visible">
+            {visibleSections.map((section) => {
+              const isActive = activeSection === section.id
+              return (
+                <li key={section.id} className="flex-shrink-0 lg:flex-shrink">
+                  <button
+                    onClick={() => {
+                      playClickSound()
+                      onSectionChange(section.id)
+                    }}
+                    className={`flex w-full items-center gap-2.5 whitespace-nowrap rounded-lg px-4 py-2.5 font-mono text-sm transition-all ${
+                      isActive ? 'bg-accent text-bg' : 'text-text hover:bg-gray hover:text-accent'
+                    }`}
+                  >
+                    {section.icon}
+                    <span>{section.label}</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
       </div>
-      <nav className="flex-1 overflow-y-auto p-2">
-        <ul className="space-y-1">
-          {visibleSections.map((section) => {
-            const isActive = activeSection === section.id
-            return (
-              <li key={section.id}>
-                <button
-                  onClick={() => {
-                    playClickSound()
-                    onSectionChange(section.id)
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg font-mono text-sm transition-all ${
-                    isActive
-                      ? 'bg-accent text-bg'
-                      : 'text-text hover:bg-gray hover:text-accent'
-                  }`}
-                >
-                  {section.icon}
-                  <span>{section.label}</span>
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
     </div>
   )
 }

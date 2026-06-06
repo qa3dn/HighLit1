@@ -24,7 +24,6 @@ export default function ProfilePage() {
   const router = useRouter()
   const userId = params.id as string
   const [activeSection, setActiveSection] = useState<RoomSection>('code')
-  const [isEditMode, setIsEditMode] = useState(false)
   const [isMounted, setIsMounted] = useState(false)
 
   // Only run on client to avoid hydration issues
@@ -34,28 +33,21 @@ export default function ProfilePage() {
 
   const { data: currentUser, isLoading: isLoadingUser } = useCurrentUser()
   
-  // Determine the actual user ID to fetch
-  const targetUserId = (userId === 'me' || userId === 'undefined') 
-    ? currentUser?.id 
-    : userId
-  
-  // Get final target user ID - handle case where targetUserId might be undefined but currentUser.id exists
-  const finalTargetUserId = (userId === 'me' || userId === 'undefined') 
-    ? (currentUser?.id || currentUser?.['id'] || targetUserId)
-    : targetUserId
-  
-  const isOwnProfile = currentUser?.id === finalTargetUserId || userId === 'me'
+  // The user id to fetch: the signed-in user for "me", otherwise the route param.
+  const targetUserId = userId === 'me' || userId === 'undefined' ? currentUser?.id : userId
+
+  const isOwnProfile = currentUser?.id === targetUserId || userId === 'me'
 
   const { data: user, isLoading: isLoadingProfile, error: userError } = useQuery({
-    queryKey: ['user', finalTargetUserId],
+    queryKey: ['user', targetUserId],
     queryFn: async () => {
-      if (!finalTargetUserId) {
+      if (!targetUserId) {
         throw new Error('User ID is required')
       }
-      const { data } = await api.get(`/users/${finalTargetUserId}`)
+      const { data } = await api.get(`/users/${targetUserId}`)
       return data
     },
-    enabled: isMounted && !!finalTargetUserId && (userId !== 'me' || !!currentUser),
+    enabled: isMounted && !!targetUserId && (userId !== 'me' || !!currentUser),
     retry: false,
   })
 
@@ -71,7 +63,7 @@ export default function ProfilePage() {
   }, [isMounted, user, isOwnProfile, userId, router])
 
   const { data: roomData } = useRoomData(
-    finalTargetUserId || '',
+    targetUserId || '',
     isOwnProfile
   )
 
@@ -79,7 +71,7 @@ export default function ProfilePage() {
   if (!isMounted) {
     return (
       <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-        <div className="font-mono text-accent" suppressHydrationWarning>Loading user profile...</div>
+        <div className="font-mono text-accent" suppressHydrationWarning>جارٍ تحميل الملف الشخصي...</div>
       </div>
     )
   }
@@ -89,7 +81,7 @@ export default function ProfilePage() {
     if (isLoadingUser) {
       return (
         <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-          <div className="font-mono text-accent">Loading user profile...</div>
+          <div className="font-mono text-accent">جارٍ تحميل الملف الشخصي...</div>
         </div>
       )
     }
@@ -97,24 +89,20 @@ export default function ProfilePage() {
     if (!currentUser) {
       return (
         <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-          <div className="font-mono text-accent">Please log in to view your profile</div>
+          <div className="font-mono text-accent">سجّل الدخول لعرض ملفك الشخصي</div>
         </div>
       )
     }
     
     // Now we have currentUser, check that it has an ID
     if (!currentUser?.id) {
-      console.error('Error: currentUser exists but no ID:', {
-        currentUser,
-        keys: currentUser ? Object.keys(currentUser) : [],
-      })
       return (
         <div className="min-h-screen bg-bg text-text flex items-center justify-center">
           <div className="font-mono text-accent">
-            Error: Unable to determine user ID. Please try refreshing the page.
+            تعذّر تحديد معرّف المستخدم. حاول تحديث الصفحة.
             <br />
             <span className="text-text-secondary text-xs mt-2 block">
-              If the problem persists, please log out and log in again.
+              إذا استمرّت المشكلة، سجّل الخروج ثم الدخول من جديد.
             </span>
           </div>
         </div>
@@ -125,17 +113,17 @@ export default function ProfilePage() {
     if (!targetUserId || targetUserId === 'undefined') {
       return (
         <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-          <div className="font-mono text-accent">Invalid user ID</div>
+          <div className="font-mono text-accent">معرّف مستخدم غير صالح</div>
         </div>
       )
     }
   }
   
   // Final check - make sure we have a valid user ID
-  if (!finalTargetUserId || finalTargetUserId === 'undefined') {
+  if (!targetUserId || targetUserId === 'undefined') {
     return (
       <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-        <div className="font-mono text-accent">Invalid user ID</div>
+        <div className="font-mono text-accent">معرّف مستخدم غير صالح</div>
       </div>
     )
   }
@@ -144,7 +132,7 @@ export default function ProfilePage() {
   if (isLoadingProfile) {
     return (
       <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-        <div className="font-mono text-accent">Loading user profile...</div>
+        <div className="font-mono text-accent">جارٍ تحميل الملف الشخصي...</div>
       </div>
     )
   }
@@ -153,7 +141,7 @@ export default function ProfilePage() {
   if (userError) {
     return (
       <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-        <div className="font-mono text-accent">Error loading user profile</div>
+        <div className="font-mono text-accent">تعذّر تحميل الملف الشخصي</div>
       </div>
     )
   }
@@ -161,7 +149,7 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-        <div className="font-mono text-accent">User not found</div>
+        <div className="font-mono text-accent">المستخدم غير موجود</div>
       </div>
     )
   }
@@ -170,7 +158,7 @@ export default function ProfilePage() {
   if (isOwnProfile && (user.role === 'ADMIN' || user.role === 'COMPANY')) {
     return (
       <div className="min-h-screen bg-bg text-text flex items-center justify-center">
-        <div className="font-mono text-accent">Redirecting...</div>
+        <div className="font-mono text-accent">جارٍ التحويل...</div>
       </div>
     )
   }
@@ -218,11 +206,11 @@ export default function ProfilePage() {
           user={user}
           codeCount={codeCount}
           isOwnProfile={isOwnProfile}
-          onEditClick={() => setIsEditMode(!isEditMode)}
+          onEditClick={() => setActiveSection('settings')}
         />
 
-        {/* Main Layout: 3 Columns */}
-        <div className="flex h-[calc(100vh-200px)]">
+        {/* Main Layout: responsive (stacked on mobile, 3 columns on desktop) */}
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 lg:flex-row lg:items-start">
           {/* Left: Navigation */}
           <RoomNavigation
             activeSection={activeSection}
@@ -231,9 +219,7 @@ export default function ProfilePage() {
           />
 
           {/* Center: Main Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {renderSection()}
-          </div>
+          <div className="min-w-0 flex-1">{renderSection()}</div>
 
           {/* Right: Quick Controls */}
           {isOwnProfile && <QuickControls isOwnProfile={isOwnProfile} />}

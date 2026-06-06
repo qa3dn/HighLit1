@@ -13,11 +13,26 @@ export interface Company {
   website: string
   logo_url: string
   banner_url: string
+  founded_year: number | null
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   review_note: string
   is_verified: boolean
   follower_count: number
+  is_following?: boolean
   is_manager?: boolean
+}
+
+export interface CompanyMedia {
+  id: number
+  url: string
+  caption: string
+  created_at: string
+}
+
+/** GET /companies/{slug} — company meta + team + media gallery in one call. */
+export interface CompanyDetail extends Company {
+  members: CompanyMember[]
+  media: CompanyMedia[]
 }
 
 export interface Plan {
@@ -151,17 +166,25 @@ export async function requestSubscription(slug: string, body: SubscriptionReques
   return data
 }
 
-export async function uploadFile(file: File): Promise<{ url: string }> {
-  const fd = new FormData()
-  fd.append('file', file)
-  const { data } = await api.post('/uploads/file', fd, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
+export { uploadFile } from '@/lib/api/uploads'
+
+export async function getCompany(slug: string): Promise<CompanyDetail> {
+  const { data } = await api.get(`/companies/${slug}`)
+  return { ...data, members: data.members ?? [], media: data.media ?? [] }
+}
+
+export interface FollowResult {
+  following: boolean
+  follower_count: number
+}
+
+export async function followCompany(slug: string): Promise<FollowResult> {
+  const { data } = await api.post(`/companies/${slug}/follow`)
   return data
 }
 
-export async function getCompany(slug: string): Promise<Company> {
-  const { data } = await api.get(`/companies/${slug}`)
+export async function unfollowCompany(slug: string): Promise<FollowResult> {
+  const { data } = await api.delete(`/companies/${slug}/follow`)
   return data
 }
 

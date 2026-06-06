@@ -6,17 +6,36 @@ from rest_framework import permissions, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-ALLOWED_CONTENT_TYPES = {
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
+# Each allowed type maps to its canonical extension and the magic bytes a real
+# file of that type must start with. We sniff the bytes ourselves instead of
+# trusting the client-reported content type (which is adversarial). SVG stays
+# permanently banned — it is an XSS vector (CLAUDE.md §3).
+ALLOWED_TYPES = {
+    "image/jpeg": {"ext": ".jpg", "magic": (b"\xff\xd8\xff",)},
+    "image/png": {"ext": ".png", "magic": (b"\x89PNG\r\n\x1a\n",)},
+    "image/webp": {"ext": ".webp", "magic": (b"RIFF",)},
+    "image/gif": {"ext": ".gif", "magic": (b"GIF87a", b"GIF89a")},
+    "application/pdf": {"ext": ".pdf", "magic": (b"%PDF-",)},
+}
+EXT_TO_TYPE = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+    ".pdf": "application/pdf",
 }
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+INLINE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
 
 
 class UploadSerializer(serializers.Serializer):
     file = serializers.FileField()
+
+
+def _sniff_matches(head: bytes, content_type: str) -> bool:
+    """A file is accepted only if its leading bytes match the declared type."""
+    return any(head.startswith(sig) for sig in ALLOWED_TYPES[content_type]["magic"])
 
 
 class UploadFileView(APIView):
@@ -28,27 +47,33 @@ class UploadFileView(APIView):
         file_obj = serializer.validated_data["file"]
 
         content_type = getattr(file_obj, "content_type", "application/octet-stream")
-        if content_type not in ALLOWED_CONTENT_TYPES:
+        if content_type not in ALLOWED_TYPES:
             return Response(
-                {"detail": "Only JPEG, PNG, WebP, and GIF images are allowed."},
+                {"detail": "يُسمح فقط بصور JPEG/PNG/WebP/GIF أو ملف PDF."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if file_obj.size > MAX_UPLOAD_BYTES:
             return Response(
-                {"detail": "File size must not exceed 5MB."},
+                {"detail": "حجم الملف يجب ألا يتجاوز 5 ميغابايت."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        ext = os.path.splitext(file_obj.name)[1].lower() or ".jpg"
-        if ext not in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
-            ext_map = {
-                "image/jpeg": ".jpg",
-                "image/png": ".png",
-                "image/webp": ".webp",
-                "image/gif": ".gif",
-            }
-            ext = ext_map.get(content_type, ".jpg")
+        # Layer 2: magic-byte sniff. Read just the header, then rewind so the
+        # full file is still written below.
+        head = file_obj.read(16)
+        file_obj.seek(0)
+        if not _sniff_matches(head, content_type):
+            return Response(
+                {"detail": "محتوى الملف لا يطابق نوعه المعلن."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Layer 1: extension allowlist. Trust the sniffed type for the stored
+        # extension rather than the original (possibly hostile) filename.
+        ext = os.path.splitext(file_obj.name)[1].lower()
+        if EXT_TO_TYPE.get(ext) != content_type:
+            ext = ALLOWED_TYPES[content_type]["ext"]
 
         upload_dir = settings.MEDIA_ROOT / "projects"
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -68,6 +93,7 @@ class UploadFileView(APIView):
                 "filename": filename,
                 "content_type": content_type,
                 "size": file_obj.size,
+                "inline": content_type in INLINE_TYPES,
             },
             status=status.HTTP_201_CREATED,
         )

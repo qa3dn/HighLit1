@@ -39,3 +39,34 @@ export function formatSalary(min: number, max: number, currency: string): string
   }
   return `حتى ${max.toLocaleString()} ${c}`
 }
+
+export interface DeadlineInfo {
+  label: string
+  urgent: boolean
+  closed: boolean
+}
+
+/** Human deadline label + urgency. Urgent within a week; closed once past. */
+export function formatDeadline(deadline: string | null): DeadlineInfo | null {
+  if (!deadline) {
+    return null
+  }
+  const end = new Date(deadline)
+  if (Number.isNaN(end.getTime())) {
+    return null
+  }
+  const days = Math.ceil((end.getTime() - Date.now()) / 86_400_000)
+  if (days < 0) {
+    return { label: 'انتهى التقديم', urgent: false, closed: true }
+  }
+  if (days === 0) {
+    return { label: 'يغلق اليوم', urgent: true, closed: false }
+  }
+  if (days === 1) {
+    return { label: 'يغلق غداً', urgent: true, closed: false }
+  }
+  if (days <= 7) {
+    return { label: `يغلق خلال ${days} أيام`, urgent: true, closed: false }
+  }
+  return { label: `التقديم حتى ${end.toLocaleDateString('ar')}`, urgent: false, closed: false }
+}

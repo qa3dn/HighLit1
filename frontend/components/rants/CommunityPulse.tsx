@@ -1,69 +1,57 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
+import { Flame, MessageSquare, Heart } from 'lucide-react'
 import { api } from '@/lib/api'
 import { Card } from '../ui/Card'
-import { DailyCounter } from './DailyCounter'
+
+interface DailyStats {
+  total_posts: number
+  total_comments: number
+  total_reactions: number
+}
 
 export function CommunityPulse() {
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<DailyStats>({
     queryKey: ['daily-stats'],
     queryFn: async () => {
-      const { data } = await api.get('/posts/stats/daily')
+      const { data } = await api.get<DailyStats>('/posts/stats/daily')
       return data
     },
-    refetchInterval: 60000, // Refresh every minute
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   })
 
+  const rows = [
+    { icon: Flame, label: 'الفضفضات', value: stats?.total_posts ?? 0 },
+    { icon: MessageSquare, label: 'التعليقات', value: stats?.total_comments ?? 0 },
+    { icon: Heart, label: 'التفاعلات', value: stats?.total_reactions ?? 0 },
+  ]
+
   return (
-    <Card className="p-6 sticky top-20 space-y-6 border-gray-dark" dir="rtl">
-      <h2 className="text-xl font-bold text-text mb-4 font-mono">نبض HighLit</h2>
+    <Card className="sticky top-20 space-y-4 border-gray-dark p-5" dir="rtl">
+      <h2 className="font-mono text-lg font-bold text-text">نبض المجتمع</h2>
 
-      {/* Daily Counter */}
-      <DailyCounter count={stats?.feelYouCount || 0} />
-
-      {/* Top Tag */}
-      {stats?.topTag && (
-        <div>
-          <h3 className="text-sm text-text-secondary mb-2 font-mono">أكثر وسم اليوم</h3>
-          <div className="bg-gray-light rounded-lg p-3 border border-gray-dark">
-            <span className="text-accent font-mono">#{stats.topTag.name}</span>
-            <span className="text-text-secondary text-sm mr-2 font-mono">
-              ({stats.topTag.count} فضفضة)
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Top Rant */}
-      {stats?.topRant && (
-        <div>
-          <h3 className="text-sm text-text-secondary mb-2 font-mono">
-            فضفضة عليها تفاعل عالي
-          </h3>
-          <div className="bg-gray-light rounded-lg p-3 border border-gray-dark">
-            <p className="text-text text-sm line-clamp-3 font-mono">
-              {stats.topRant.content}
-            </p>
-            <div className="mt-2 flex items-center gap-2 text-xs text-text-secondary font-mono">
-              <span>
-                {(stats.topRant.reactions || []).length} تفاعل
+      <div className="space-y-2">
+        {rows.map((row) => {
+          const Icon = row.icon
+          return (
+            <div
+              key={row.label}
+              className="flex items-center justify-between rounded-lg border border-gray-dark bg-gray-light px-3 py-2.5"
+            >
+              <span className="flex items-center gap-2 text-sm text-text-secondary">
+                <Icon className="h-4 w-4 text-accent/70" aria-hidden /> {row.label}
               </span>
+              <span className="font-mono text-lg font-bold text-accent">{row.value}</span>
             </div>
-          </div>
-        </div>
-      )}
+          )
+        })}
+      </div>
 
-      {/* Daily Quote */}
-      {stats?.topRant && (
-        <div className="pt-4 border-t border-gray-dark">
-          <h3 className="text-sm text-text-secondary mb-2 font-mono">اقتباس اليوم</h3>
-          <blockquote className="text-text italic text-sm font-mono">
-            "{stats.topRant.content.substring(0, 100)}..."
-          </blockquote>
-        </div>
-      )}
+      <p className="border-t border-gray-dark pt-3 text-xs leading-relaxed text-text-secondary">
+        كل فضفضة بتذكّر حدا إنه مش لحاله. شارك وجعك… أو خفّف عن غيرك.
+      </p>
     </Card>
   )
 }
-
