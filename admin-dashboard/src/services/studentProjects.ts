@@ -9,19 +9,29 @@ export interface StudentProject {
   author: {
     id: number;
     username: string;
+    avatar_url?: string;
     university?: string;
     major?: string;
   };
   title: string;
   summary: string;
+  description: string;
   university: string;
   major: string;
   academic_year: string;
   project_type: ProjectType;
+  github_url: string;
+  demo_url: string;
+  video_url: string;
+  cover_image: string;
+  gallery_images: string[];
+  tech_stack: string[];
+  tags: string[];
   status: ProjectStatus;
   rejection_reason?: string;
-  cover_image: string;
+  view_count: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface ProjectFilters {
@@ -51,5 +61,10 @@ export async function rejectProject(id: number, reason?: string) {
   const { data } = await client.post<StudentProject>(`/student-projects/${id}/reject`, {
     reason: reason || '',
   });
+  return data;
+}
+
+export async function approveProject(id: number) {
+  const { data } = await client.post<StudentProject>(`/student-projects/${id}/approve`);
   return data;
 }

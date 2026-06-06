@@ -227,3 +227,199 @@ class CompanySubscription(TimestampedModel):
             models.Index(fields=["company", "status"], name="csub_comp_status_idx"),
             models.Index(fields=["status"], name="csub_status_idx"),
         ]
+
+
+class PromoCode(models.Model):
+    """Admin-managed discount applied to a subscription purchase: a percentage
+    (0–100) or a fixed amount in the plan's currency (JOD). Optionally limited to
+    one plan, a validity window, and a maximum number of redemptions."""
+
+    class DiscountType(models.TextChoices):
+        PERCENT = "PERCENT", "Percent"
+        FIXED = "FIXED", "Fixed"
+
+    code = models.CharField(max_length=40, unique=True)
+    discount_type = models.CharField(
+        max_length=10, choices=DiscountType.choices, default=DiscountType.PERCENT
+    )
+    amount = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    plan = models.ForeignKey(
+        SubscriptionPlan,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="promo_codes",
+    )
+    valid_from = models.DateTimeField(null=True, blank=True)
+    valid_until = models.DateTimeField(null=True, blank=True)
+    max_uses = models.PositiveIntegerField(null=True, blank=True)
+    used_count = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.code
+
+    def is_redeemable(self) -> bool:
+        """Whether the code can be applied right now (active, in-window, under
+        its usage cap)."""
+        from django.utils import timezone
+
+        if not self.is_active:
+            return False
+        now = timezone.now()
+        if self.valid_from and now < self.valid_from:
+            return False
+        if self.valid_until and now > self.valid_until:
+            return False
+        if self.max_uses is not None and self.used_count >= self.max_uses:
+            return False
+        return True
+
+
+class Invoice(models.Model):
+    """A bill for a subscription (or campaign). Money is Decimal in the plan's
+    currency. `total` is the net payable after any promo discount."""
+
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Open"
+        PAID = "PAID", "Paid"
+        VOID = "VOID", "Void"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="invoices")
+    subscription = models.ForeignKey(
+        CompanySubscription,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="invoices",
+    )
+    description = models.CharField(max_length=200, blank=True, default="")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=8, default="JOD")
+    promo_code = models.ForeignKey(
+        PromoCode, null=True, blank=True, on_delete=models.SET_NULL, related_name="invoices"
+    )
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.OPEN)
+    # Click/CliQ transfer evidence submitted by the company (verified by an admin
+    # before activation).
+    transfer_reference = models.CharField(max_length=128, blank=True, default="")
+    proof_url = models.URLField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["company", "status"], name="invoice_comp_status_idx"),
+            models.Index(fields=["status"], name="invoice_status_idx"),
+        ]
+
+    def __str__(self):
+        return f"Invoice #{self.pk} ({self.total} {self.currency})"
+
+
+class Payment(models.Model):
+    """A settlement record against an invoice. `idempotency_key` is unique so a
+    retried manual settle or a re-delivered webhook is a no-op (DB-enforced)."""
+
+    class Gateway(models.TextChoices):
+        MANUAL = "MANUAL", "Manual"
+        CLIQ = "CLIQ", "CliQ"
+        CLICK = "CLICK", "Click"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SUCCEEDED = "SUCCEEDED", "Succeeded"
+        FAILED = "FAILED", "Failed"
+
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
+    amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=8, default="JOD")
+    gateway = models.CharField(max_length=10, choices=Gateway.choices, default=Gateway.MANUAL)
+    gateway_ref = models.CharField(max_length=128, blank=True, default="")
+    idempotency_key = models.CharField(max_length=128, unique=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    raw = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="recorded_payments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    settled_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["invoice"], name="payment_invoice_idx"),
+            models.Index(fields=["status"], name="payment_status_idx"),
+        ]
+
+    def __str__(self):
+        return f"Payment #{self.pk} {self.status} ({self.gateway})"
+
+
+class PromotionCampaign(models.Model):
+    """A paid, time-boxed promotion — featuring a job (or the company) for a
+    period. Activating sets the target job's `is_featured` flag; ending clears
+    it. Priced like a one-off invoice (the free `is_featured` toggle, monetized)."""
+
+    class Target(models.TextChoices):
+        JOB = "JOB", "Job"
+        COMPANY = "COMPANY", "Company"
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        ACTIVE = "ACTIVE", "Active"
+        REJECTED = "REJECTED", "Rejected"
+        EXPIRED = "EXPIRED", "Expired"
+        CANCELLED = "CANCELLED", "Cancelled"
+
+    company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name="campaigns")
+    name = models.CharField(max_length=160)
+    target_type = models.CharField(max_length=10, choices=Target.choices, default=Target.JOB)
+    job = models.ForeignKey(
+        "posts.Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="promotions"
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency = models.CharField(max_length=8, default="JOD")
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    invoice = models.ForeignKey(
+        Invoice, null=True, blank=True, on_delete=models.SET_NULL, related_name="campaigns"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_campaigns",
+    )
+    activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="activated_campaigns",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["status"], name="campaign_status_idx"),
+            models.Index(fields=["company", "status"], name="campaign_comp_status_idx"),
+        ]
+
+    def __str__(self):
+        return self.name

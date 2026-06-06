@@ -8,6 +8,10 @@ from .models import (
     CompanyPost,
     CompanyPostComment,
     CompanySubscription,
+    Invoice,
+    Payment,
+    PromoCode,
+    PromotionCampaign,
     SubscriptionPlan,
 )
 
@@ -151,6 +155,132 @@ class SubscriptionPlanSerializer(serializers.ModelSerializer):
             "is_active",
             "sort_order",
         )
+
+
+class PromoCodeSerializer(serializers.ModelSerializer):
+    is_redeemable = serializers.SerializerMethodField()
+    plan_name = serializers.CharField(source="plan.name", read_only=True, default=None)
+
+    class Meta:
+        model = PromoCode
+        fields = (
+            "id",
+            "code",
+            "discount_type",
+            "amount",
+            "plan",
+            "plan_name",
+            "valid_from",
+            "valid_until",
+            "max_uses",
+            "used_count",
+            "is_active",
+            "is_redeemable",
+            "created_at",
+        )
+        read_only_fields = ("id", "used_count", "is_redeemable", "plan_name", "created_at")
+
+    def get_is_redeemable(self, obj) -> bool:
+        return obj.is_redeemable()
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    created_by_username = serializers.CharField(source="created_by.username", read_only=True, default=None)
+
+    class Meta:
+        model = Payment
+        fields = (
+            "id",
+            "amount",
+            "currency",
+            "gateway",
+            "gateway_ref",
+            "status",
+            "created_by",
+            "created_by_username",
+            "created_at",
+            "settled_at",
+        )
+        read_only_fields = fields
+
+
+class InvoiceSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    company_slug = serializers.CharField(source="company.slug", read_only=True)
+    promo_code_label = serializers.CharField(source="promo_code.code", read_only=True, default=None)
+    payments = PaymentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Invoice
+        fields = (
+            "id",
+            "company",
+            "company_name",
+            "company_slug",
+            "subscription",
+            "description",
+            "amount",
+            "discount_amount",
+            "total",
+            "currency",
+            "promo_code",
+            "promo_code_label",
+            "transfer_reference",
+            "proof_url",
+            "status",
+            "created_at",
+            "paid_at",
+            "payments",
+        )
+        read_only_fields = fields
+
+
+class PromotionCampaignSerializer(serializers.ModelSerializer):
+    company_name = serializers.CharField(source="company.name", read_only=True)
+    job_title = serializers.CharField(source="job.title", read_only=True, default=None)
+
+    class Meta:
+        model = PromotionCampaign
+        fields = (
+            "id",
+            "company",
+            "company_name",
+            "name",
+            "target_type",
+            "job",
+            "job_title",
+            "price",
+            "currency",
+            "starts_at",
+            "ends_at",
+            "status",
+            "invoice",
+            "created_by",
+            "activated_by",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "company_name",
+            "job_title",
+            "status",
+            "invoice",
+            "created_by",
+            "activated_by",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate(self, attrs):
+        # A JOB campaign may only target a job that belongs to its own company.
+        target = attrs.get("target_type") or getattr(self.instance, "target_type", None)
+        job = attrs.get("job", getattr(self.instance, "job", None))
+        company = attrs.get("company", getattr(self.instance, "company", None))
+        if target == PromotionCampaign.Target.JOB and job is not None and company is not None:
+            if job.company_profile_id != company.id:
+                raise serializers.ValidationError({"job": "الوظيفة لا تتبع هذه الشركة."})
+        return attrs
 
 
 class CompanySubscriptionSerializer(serializers.ModelSerializer):

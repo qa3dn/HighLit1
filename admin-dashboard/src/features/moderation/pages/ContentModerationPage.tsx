@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Loader } from '../../../components/ui/Loader';
 import { Badge } from '../../../components/ui/Badge';
 import { Modal } from '../../../components/ui/Modal';
 import { Button } from '../../../components/ui/Button';
+import { Select } from '../../../components/ui/Select';
+import { Tabs, type TabItem } from '../../../components/ui/Tabs';
+import { DataTable, type Column } from '../../../components/ui/DataTable';
+import { Pagination } from '../../../components/ui/Pagination';
 import {
   useComments,
   useDeleteComment,
@@ -11,6 +14,8 @@ import {
   useSetCommentHidden,
   useSetPostHidden,
 } from '../useModeration';
+import type { ModComment, ModPost } from '../moderationService';
+import { ContentDetailDrawer, type SelectedContent } from '../components/ContentDetailDrawer';
 
 type Tab = 'posts' | 'comments';
 
@@ -20,20 +25,21 @@ interface DeleteTarget {
   label: string;
 }
 
+const TABS: TabItem<Tab>[] = [
+  { key: 'posts', label: 'المنشورات' },
+  { key: 'comments', label: 'التعليقات' },
+];
+
+const TYPE_LABEL: Record<string, string> = { RANT: 'فضفضة', CODE: 'كود' };
+
 function formatDate(value: string) {
-  return new Date(value).toLocaleDateString('ar-EG', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
+  return new Date(value).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function snippet(text: string, max = 90) {
   const t = (text || '').replace(/\s+/g, ' ').trim();
   return t.length > max ? `${t.slice(0, max)}…` : t;
 }
-
-const TYPE_LABEL: Record<string, string> = { RANT: 'فضفضة', CODE: 'كود' };
 
 const ContentModerationPage = () => {
   const [tab, setTab] = useState<Tab>('posts');
@@ -44,6 +50,7 @@ const ContentModerationPage = () => {
   const [ordering, setOrdering] = useState('recent');
   const [page, setPage] = useState(1);
   const [toDelete, setToDelete] = useState<DeleteTarget | null>(null);
+  const [selected, setSelected] = useState<SelectedContent | null>(null);
 
   const postsQuery = usePosts({ q: query, type, hidden, ordering, page }, tab === 'posts');
   const commentsQuery = useComments({ q: query, hidden, page }, tab === 'comments');
@@ -61,24 +68,126 @@ const ContentModerationPage = () => {
     setPage(1);
   };
 
-  const resetAndSearch = () => {
-    setQuery(search.trim());
-    setPage(1);
-  };
-
   const confirmDelete = async () => {
     if (!toDelete) return;
-    if (toDelete.kind === 'posts') {
-      await deletePost.mutateAsync(toDelete.id);
-    } else {
-      await deleteComment.mutateAsync(toDelete.id);
-    }
+    if (toDelete.kind === 'posts') await deletePost.mutateAsync(toDelete.id);
+    else await deleteComment.mutateAsync(toDelete.id);
     setToDelete(null);
   };
 
   const deleting = deletePost.isPending || deleteComment.isPending;
-  const selectClass =
-    'rounded-lg border border-border bg-gray-light px-3 py-2 text-sm text-text outline-none focus:border-accent';
+
+  const postColumns: Column<ModPost>[] = [
+    {
+      key: 'content',
+      header: 'المحتوى',
+      className: 'max-w-[280px]',
+      render: (p) => (
+        <div>
+          {p.title && <div className="font-medium text-text">{p.title}</div>}
+          <div className="text-text-secondary">{snippet(p.content)}</div>
+        </div>
+      ),
+    },
+    {
+      key: 'author',
+      header: 'الكاتب',
+      render: (p) => (
+        <div className="flex items-center gap-2">
+          <span className="text-text">@{p.author.username}</span>
+          {p.is_anonymous && <Badge variant="warning">مجهول</Badge>}
+        </div>
+      ),
+    },
+    { key: 'type', header: 'النوع', render: (p) => <span className="text-text-secondary">{TYPE_LABEL[p.type] ?? p.type}</span> },
+    {
+      key: 'engagement',
+      header: 'التفاعل',
+      render: (p) => (
+        <span className="whitespace-nowrap text-text-secondary">
+          {p.reaction_count} تفاعل · {p.comment_count} تعليق
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'الحالة',
+      render: (p) =>
+        p.is_hidden ? <Badge variant="danger">مخفي</Badge> : <Badge variant="success">ظاهر</Badge>,
+    },
+    {
+      key: 'date',
+      header: 'التاريخ',
+      render: (p) => <span className="whitespace-nowrap text-text-secondary">{formatDate(p.created_at)}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'إجراءات',
+      render: (p) => (
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setPostHidden.mutate({ id: p.id, isHidden: !p.is_hidden })}
+            disabled={setPostHidden.isPending}
+            className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            {p.is_hidden ? 'إظهار' : 'إخفاء'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setToDelete({ kind: 'posts', id: p.id, label: p.title || snippet(p.content, 40) })}
+            className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+          >
+            حذف
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const commentColumns: Column<ModComment>[] = [
+    { key: 'content', header: 'التعليق', className: 'max-w-[320px]', render: (c) => <span className="text-text">{snippet(c.content)}</span> },
+    { key: 'author', header: 'الكاتب', render: (c) => <span className="text-text-secondary">@{c.author.username}</span> },
+    {
+      key: 'post',
+      header: 'على منشور',
+      render: (c) => <span className="text-text-secondary">{c.post.title || `#${c.post.id}`}</span>,
+    },
+    {
+      key: 'status',
+      header: 'الحالة',
+      render: (c) =>
+        c.is_hidden ? <Badge variant="danger">مخفي</Badge> : <Badge variant="success">ظاهر</Badge>,
+    },
+    {
+      key: 'date',
+      header: 'التاريخ',
+      render: (c) => <span className="whitespace-nowrap text-text-secondary">{formatDate(c.created_at)}</span>,
+    },
+    {
+      key: 'actions',
+      header: 'إجراءات',
+      render: (c) => (
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setCommentHidden.mutate({ id: c.id, isHidden: !c.is_hidden })}
+            disabled={setCommentHidden.isPending}
+            className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
+          >
+            {c.is_hidden ? 'إظهار' : 'إخفاء'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setToDelete({ kind: 'comments', id: c.id, label: snippet(c.content, 40) })}
+            className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
+          >
+            حذف
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div dir="rtl" className="space-y-6 animate-fade-in">
@@ -89,30 +198,14 @@ const ContentModerationPage = () => {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-border">
-        {(['posts', 'comments'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => switchTab(t)}
-            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition-colors ${
-              tab === t
-                ? 'border-accent text-accent'
-                : 'border-transparent text-text-secondary hover:text-text'
-            }`}
-          >
-            {t === 'posts' ? 'المنشورات' : 'التعليقات'}
-          </button>
-        ))}
-      </div>
+      <Tabs tabs={TABS} active={tab} onChange={switchTab} />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-end gap-2">
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            resetAndSearch();
+            setQuery(search.trim());
+            setPage(1);
           }}
           className="flex gap-2"
         >
@@ -120,231 +213,85 @@ const ContentModerationPage = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={tab === 'posts' ? 'بحث في المحتوى أو الكاتب...' : 'بحث في التعليق أو الكاتب...'}
-            className="w-64 rounded-lg border border-border bg-gray-light px-3 py-2 text-sm text-text outline-none focus:border-accent"
+            className="w-full min-w-[12rem] rounded-lg border border-border bg-gray-light px-3 py-2 text-sm text-text outline-none focus:border-accent sm:w-64"
           />
           <Button type="submit" variant="secondary" size="sm">
             بحث
           </Button>
         </form>
 
-        <select
+        <Select
           value={hidden}
           onChange={(e) => {
             setHidden(e.target.value);
             setPage(1);
           }}
-          className={selectClass}
-        >
-          <option value="">كل الحالات</option>
-          <option value="false">ظاهر</option>
-          <option value="true">مخفي</option>
-        </select>
+          options={[
+            { value: '', label: 'كل الحالات' },
+            { value: 'false', label: 'ظاهر' },
+            { value: 'true', label: 'مخفي' },
+          ]}
+        />
 
         {tab === 'posts' && (
           <>
-            <select
+            <Select
               value={type}
               onChange={(e) => {
                 setType(e.target.value);
                 setPage(1);
               }}
-              className={selectClass}
-            >
-              <option value="">كل الأنواع</option>
-              <option value="RANT">فضفضة</option>
-              <option value="CODE">كود</option>
-            </select>
-            <select
+              options={[
+                { value: '', label: 'كل الأنواع' },
+                { value: 'RANT', label: 'فضفضة' },
+                { value: 'CODE', label: 'كود' },
+              ]}
+            />
+            <Select
               value={ordering}
               onChange={(e) => {
                 setOrdering(e.target.value);
                 setPage(1);
               }}
-              className={selectClass}
-            >
-              <option value="recent">الأحدث</option>
-              <option value="top">الأكثر تفاعلاً</option>
-            </select>
+              options={[
+                { value: 'recent', label: 'الأحدث' },
+                { value: 'top', label: 'الأكثر تفاعلاً' },
+              ]}
+            />
           </>
         )}
       </div>
 
-      {/* Content */}
-      {active.isLoading ? (
-        <Loader />
-      ) : active.isError ? (
+      {active.isError ? (
         <p className="text-red-400">تعذّر تحميل المحتوى.</p>
+      ) : tab === 'posts' ? (
+        <DataTable
+          columns={postColumns}
+          rows={postsQuery.data?.results ?? []}
+          keyField={(p) => p.id}
+          onRowClick={(p) => setSelected({ type: 'post', item: p })}
+          loading={postsQuery.isLoading}
+          empty="لا توجد منشورات مطابقة."
+        />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border bg-gray-light">
-          {tab === 'posts' ? (
-            <table className="w-full min-w-[820px] text-right text-sm">
-              <thead className="border-b border-border bg-gray text-xs uppercase text-text-secondary">
-                <tr>
-                  <th className="px-4 py-3">المحتوى</th>
-                  <th className="px-4 py-3">الكاتب</th>
-                  <th className="px-4 py-3">النوع</th>
-                  <th className="px-4 py-3">التفاعل</th>
-                  <th className="px-4 py-3">الحالة</th>
-                  <th className="px-4 py-3">التاريخ</th>
-                  <th className="px-4 py-3">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {(postsQuery.data?.results ?? []).map((post) => (
-                  <tr key={post.id} className="hover:bg-gray transition-colors">
-                    <td className="max-w-[280px] px-4 py-3">
-                      {post.title && <div className="font-medium text-text">{post.title}</div>}
-                      <div className="text-text-secondary">{snippet(post.content)}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-text">@{post.author.username}</span>
-                        {post.is_anonymous && <Badge variant="warning">مجهول</Badge>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-text-secondary">{TYPE_LABEL[post.type] ?? post.type}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
-                      {post.reaction_count} تفاعل · {post.comment_count} تعليق
-                    </td>
-                    <td className="px-4 py-3">
-                      {post.is_hidden ? (
-                        <Badge variant="danger">مخفي</Badge>
-                      ) : (
-                        <Badge variant="success">ظاهر</Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
-                      {formatDate(post.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setPostHidden.mutate({ id: post.id, isHidden: !post.is_hidden })}
-                          disabled={setPostHidden.isPending}
-                          className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
-                        >
-                          {post.is_hidden ? 'إظهار' : 'إخفاء'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setToDelete({
-                              kind: 'posts',
-                              id: post.id,
-                              label: post.title || snippet(post.content, 40),
-                            })
-                          }
-                          className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
-                        >
-                          حذف
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {(postsQuery.data?.results ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="px-4 py-12 text-center text-text-secondary">
-                      لا توجد منشورات مطابقة.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          ) : (
-            <table className="w-full min-w-[760px] text-right text-sm">
-              <thead className="border-b border-border bg-gray text-xs uppercase text-text-secondary">
-                <tr>
-                  <th className="px-4 py-3">التعليق</th>
-                  <th className="px-4 py-3">الكاتب</th>
-                  <th className="px-4 py-3">على منشور</th>
-                  <th className="px-4 py-3">الحالة</th>
-                  <th className="px-4 py-3">التاريخ</th>
-                  <th className="px-4 py-3">إجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {(commentsQuery.data?.results ?? []).map((comment) => (
-                  <tr key={comment.id} className="hover:bg-gray transition-colors">
-                    <td className="max-w-[320px] px-4 py-3 text-text">{snippet(comment.content)}</td>
-                    <td className="px-4 py-3 text-text-secondary">@{comment.author.username}</td>
-                    <td className="max-w-[200px] px-4 py-3 text-text-secondary">
-                      {comment.post.title || `#${comment.post.id}`}
-                    </td>
-                    <td className="px-4 py-3">
-                      {comment.is_hidden ? (
-                        <Badge variant="danger">مخفي</Badge>
-                      ) : (
-                        <Badge variant="success">ظاهر</Badge>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-text-secondary">
-                      {formatDate(comment.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setCommentHidden.mutate({ id: comment.id, isHidden: !comment.is_hidden })
-                          }
-                          disabled={setCommentHidden.isPending}
-                          className="rounded border border-border px-2 py-1 text-xs text-text-secondary hover:border-accent hover:text-accent disabled:opacity-50"
-                        >
-                          {comment.is_hidden ? 'إظهار' : 'إخفاء'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setToDelete({ kind: 'comments', id: comment.id, label: snippet(comment.content, 40) })
-                          }
-                          className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10"
-                        >
-                          حذف
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {(commentsQuery.data?.results ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-text-secondary">
-                      لا توجد تعليقات مطابقة.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <DataTable
+          columns={commentColumns}
+          rows={commentsQuery.data?.results ?? []}
+          keyField={(c) => c.id}
+          onRowClick={(c) => setSelected({ type: 'comment', item: c })}
+          loading={commentsQuery.isLoading}
+          empty="لا توجد تعليقات مطابقة."
+        />
       )}
 
-      {/* Pagination */}
-      {meta && meta.total > 0 && (
-        <div className="flex items-center justify-between text-sm text-text-secondary">
-          <span>
-            صفحة {meta.page} — {meta.total} عنصر
-          </span>
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={meta.page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              السابق
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={!meta.has_more}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              التالي
-            </Button>
-          </div>
-        </div>
+      {meta && (
+        <Pagination
+          page={meta.page}
+          hasMore={meta.has_more}
+          total={meta.total}
+          limit={meta.limit}
+          onPageChange={setPage}
+        />
       )}
 
       <Modal isOpen={!!toDelete} onClose={() => setToDelete(null)} title="تأكيد الحذف النهائي">
@@ -363,6 +310,8 @@ const ContentModerationPage = () => {
           </Button>
         </div>
       </Modal>
+
+      <ContentDetailDrawer selected={selected} onClose={() => setSelected(null)} />
     </div>
   );
 };

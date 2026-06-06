@@ -92,13 +92,14 @@ export function QuickControls({ isOwnProfile }: QuickControlsProps) {
   }
 
   return (
-    <aside className="flex h-full w-64 flex-col border-l border-gray-dark bg-bg" dir="rtl">
-      <div className="border-b border-gray-dark px-4 py-3.5">
-        <h2 className="font-mono text-sm font-bold text-accent">تحكم سريع</h2>
-        <p className="mt-0.5 text-[11px] text-text-secondary">إدارة حسابك وبياناتك</p>
-      </div>
+    <aside className="w-full lg:w-64 lg:flex-shrink-0" dir="rtl">
+      <div className="rounded-2xl border border-gray-dark bg-gray-light lg:sticky lg:top-20">
+        <div className="border-b border-gray-dark px-4 py-3.5">
+          <h2 className="font-mono text-sm font-bold text-accent">تحكم سريع</h2>
+          <p className="mt-0.5 text-[11px] text-text-secondary">إدارة حسابك وبياناتك</p>
+        </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div className="space-y-4 p-4">
         {/* GitHub */}
         <section className="rounded-xl border border-gray-dark bg-gray-light p-3.5">
           <div className="mb-2.5 flex items-center gap-2">
@@ -194,6 +195,7 @@ export function QuickControls({ isOwnProfile }: QuickControlsProps) {
             <LogOut className="h-3.5 w-3.5" /> تسجيل الخروج
           </button>
         </section>
+        </div>
       </div>
     </aside>
   )

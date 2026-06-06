@@ -13,11 +13,26 @@ export interface Company {
   website: string
   logo_url: string
   banner_url: string
+  founded_year: number | null
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
   review_note: string
   is_verified: boolean
   follower_count: number
+  is_following?: boolean
   is_manager?: boolean
+}
+
+export interface CompanyMedia {
+  id: number
+  url: string
+  caption: string
+  created_at: string
+}
+
+/** GET /companies/{slug} — company meta + team + media gallery in one call. */
+export interface CompanyDetail extends Company {
+  members: CompanyMember[]
+  media: CompanyMedia[]
 }
 
 export interface Plan {
@@ -51,11 +66,35 @@ export interface PlanLimits {
   allows_featured_jobs: boolean
 }
 
+export interface PaymentInfo {
+  provider: string
+  account_id: string
+  account_name: string
+  instructions: string
+}
+
 export interface SubscriptionInfo {
   current: Subscription | null
   pending: Subscription | null
   limits: PlanLimits
   usage: { active_jobs: number }
+  payment_info?: PaymentInfo
+}
+
+export interface SubscriptionQuote {
+  amount: string
+  discount: string
+  total: string
+  currency: string
+  promo_applied: boolean
+  promo_message?: string
+}
+
+export interface SubscriptionRequest {
+  plan_id: number
+  promo_code?: string
+  transfer_reference?: string
+  proof_url?: string
 }
 
 export interface CompanyInput {
@@ -114,13 +153,38 @@ export async function getSubscription(slug: string): Promise<SubscriptionInfo> {
   return data
 }
 
-export async function requestSubscription(slug: string, planId: number): Promise<Subscription> {
-  const { data } = await api.post(`/companies/${slug}/subscription`, { plan_id: planId })
+export async function quoteSubscription(
+  slug: string,
+  body: { plan_id: number; promo_code?: string },
+): Promise<SubscriptionQuote> {
+  const { data } = await api.post(`/companies/${slug}/subscription/quote`, body)
   return data
 }
 
-export async function getCompany(slug: string): Promise<Company> {
+export async function requestSubscription(slug: string, body: SubscriptionRequest): Promise<Subscription> {
+  const { data } = await api.post(`/companies/${slug}/subscription`, body)
+  return data
+}
+
+export { uploadFile } from '@/lib/api/uploads'
+
+export async function getCompany(slug: string): Promise<CompanyDetail> {
   const { data } = await api.get(`/companies/${slug}`)
+  return { ...data, members: data.members ?? [], media: data.media ?? [] }
+}
+
+export interface FollowResult {
+  following: boolean
+  follower_count: number
+}
+
+export async function followCompany(slug: string): Promise<FollowResult> {
+  const { data } = await api.post(`/companies/${slug}/follow`)
+  return data
+}
+
+export async function unfollowCompany(slug: string): Promise<FollowResult> {
+  const { data } = await api.delete(`/companies/${slug}/follow`)
   return data
 }
 

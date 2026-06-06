@@ -11,6 +11,8 @@ from .serializers import LoginSerializer, RegisterSerializer, UserSerializer
 User = get_user_model()
 
 MAX_REPUTATION_DELTA = 100
+# Admin-set temporary passwords must be stronger than the public signup minimum.
+MIN_PASSWORD_LENGTH = 8
 
 
 def _issue_tokens(user) -> dict:
@@ -187,3 +189,56 @@ class UserBanView(APIView):
             request=request,
         )
         return Response({"id": user.pk, "is_active": user.is_active})
+
+
+class AdminUserDetailView(APIView):
+    """Single-call admin snapshot of one account: profile, platform stats, owned
+    companies (+ status counts), memberships, and recent audit activity."""
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request, pk):
+        from .admin_services import build_admin_user_detail  # lazy: avoids load-order coupling
+
+        user = get_object_or_404(User, pk=pk)
+        return Response(build_admin_user_detail(user))
+
+
+class AdminSetPasswordView(APIView):
+    """Support action: set a temporary password for a user. Refuses to target
+    another admin (prevents lateral takeover); audited; password never logged."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from apps.audit.services import record_event
+
+        user = get_object_or_404(User, pk=pk)
+        if user.role == User.Role.ADMIN and user.id != request.user.id:
+            return Response(
+                {"detail": "لا يمكن تعيين كلمة مرور لمدير آخر."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        password = request.data.get("password") or ""
+        if len(password) < MIN_PASSWORD_LENGTH:
+            return Response(
+                {"detail": f"كلمة المرور يجب أن تكون {MIN_PASSWORD_LENGTH} أحرف على الأقل."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_password(password, user)
+        except DjangoValidationError as exc:
+            return Response({"detail": list(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
+        user.set_password(password)
+        user.save(update_fields=["password"])
+        record_event(
+            request.user,
+            "user.password_set",
+            target_type="user",
+            target_id=str(user.pk),
+            request=request,
+        )
+        return Response({"id": user.pk, "ok": True})

@@ -1,6 +1,6 @@
 'use client'
 
-import { Flame, Clock, TrendingUp } from 'lucide-react'
+import { Flame, Clock, TrendingUp, AlertTriangle, Inbox } from 'lucide-react'
 import { RantCard } from './RantCard'
 import { RantCardSkeleton } from './RantCardSkeleton'
 import { LockedGate } from './LockedGate'
@@ -13,6 +13,9 @@ interface RantFeedProps {
   onSortChange: (sort: FeedSort) => void
   isAuthenticated: boolean
   isLoading: boolean
+  isError: boolean
+  onRetry: () => void
+  hasActiveFilters: boolean
   locked: boolean
   remainingLocked: number
   hasMore: boolean
@@ -32,6 +35,9 @@ export function RantFeed({
   onSortChange,
   isAuthenticated,
   isLoading,
+  isError,
+  onRetry,
+  hasActiveFilters,
   locked,
   remainingLocked,
   hasMore,
@@ -58,7 +64,7 @@ export function RantFeed({
                   : 'border-transparent text-text-secondary hover:border-gray-dark hover:text-text'
               }`}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4" aria-hidden />
               {option.label}
             </button>
           )
@@ -71,10 +77,31 @@ export function RantFeed({
             <RantCardSkeleton key={i} />
           ))}
         </div>
+      ) : isError ? (
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-red-500/30 bg-red-500/5 py-16 text-center">
+          <AlertTriangle className="h-10 w-10 text-red-400" aria-hidden />
+          <p className="font-mono text-text">تعذّر تحميل الفضفضات.</p>
+          <button
+            onClick={() => {
+              playClickSound()
+              onRetry()
+            }}
+            className="rounded-lg bg-accent px-5 py-2 text-sm font-semibold text-bg transition-colors hover:bg-accent-hover"
+          >
+            إعادة المحاولة
+          </button>
+        </div>
       ) : posts.length === 0 ? (
-        <div className="rounded-2xl border border-gray-dark bg-gray-light py-16 text-center font-mono text-text-secondary">
-          <p className="mb-2 text-lg">ما في فضفضات هون</p>
-          <p className="text-sm">كن أول واحد يفضفض!</p>
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-gray-dark bg-gray-light py-16 text-center font-mono text-text-secondary">
+          <Inbox className="h-10 w-10 opacity-40" aria-hidden />
+          {hasActiveFilters ? (
+            <p className="text-sm">ما في فضفضات مطابقة لبحثك.</p>
+          ) : (
+            <>
+              <p className="text-lg text-text">ما في فضفضات هون</p>
+              <p className="text-sm">كن أول واحد يفضفض!</p>
+            </>
+          )}
         </div>
       ) : (
         <div>

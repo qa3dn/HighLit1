@@ -35,6 +35,11 @@ class Comment(models.Model):
     is_hidden = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["user"], name="comment_user_idx"),
+        ]
+
 
 class Reaction(models.Model):
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name="reactions")
@@ -106,6 +111,7 @@ class Job(models.Model):
         ordering = ["-is_featured", "-created_at"]
         indexes = [
             models.Index(fields=["status", "job_type", "-created_at"], name="job_status_type_idx"),
+            models.Index(fields=["created_by"], name="job_created_by_idx"),
         ]
 
 
@@ -115,6 +121,12 @@ class JobReview(models.Model):
     rating = models.IntegerField(default=5)
     comment = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["-created_at"], name="jobreview_created_idx"),
+        ]
 
 
 class JobApplication(models.Model):
@@ -129,8 +141,27 @@ class JobApplication(models.Model):
     applicant = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="job_applications"
     )
+    # Professional applicant profile captured at apply time. These describe the
+    # candidate as they want the company to see them, independent of their
+    # account profile (which they may not have filled out).
+    full_name = models.CharField(max_length=120, blank=True, default="")
+    headline = models.CharField(max_length=160, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    phone = models.CharField(max_length=40, blank=True, default="")
+    location = models.CharField(max_length=120, blank=True, default="")
+    photo_url = models.URLField(blank=True, default="")
+    # resume_url is the uploaded CV (PDF). cover_letter is the pitch.
     cover_letter = models.TextField(blank=True, default="")
     resume_url = models.URLField(blank=True, default="")
+    portfolio_url = models.URLField(blank=True, default="")
+    linkedin_url = models.URLField(blank=True, default="")
+    # Display-only, never queried/filtered → JSON is appropriate (CLAUDE.md §2).
+    # education: [{degree, field, institution, start_year, end_year}]
+    # experience: [{title, company, start, end, description}]
+    education = models.JSONField(default=list, blank=True)
+    experience = models.JSONField(default=list, blank=True)
+    # skills: ["python", "react", ...] — matched against Job.skills for filtering.
+    skills = models.JSONField(default=list, blank=True)
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PENDING)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

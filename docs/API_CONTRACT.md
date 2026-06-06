@@ -94,10 +94,31 @@
 | GET | `/jobs/my-applications` | JWT | طلبات المستخدم الحالي |
 | GET | `/jobs/:id` | لا* | تفاصيل (غير المنشورة تظهر للمدير/الأدمن فقط) — يتضمّن `has_applied`, `application_count` |
 | PATCH/DELETE | `/jobs/:id` | مدير/أدمن | تعديل/إغلاق/حذف الوظيفة |
-| POST | `/jobs/:id/apply` | JWT | تقديم (`cover_letter`, `resume_url`) — **409** عند التكرار، **400** على وظيفة شركتك |
-| GET | `/jobs/:id/applicants` | مدير/أدمن | المتقدمون **مع تطبيق البوّابة**: المدير يرى حتى `max_visible_applicants` (5 مجاناً) + `locked_count`؛ الأدمن يرى الكل |
+| POST | `/jobs/:id/apply` | JWT | تقديم احترافي (انظر شكل الطلب أدناه) — **409** عند التكرار، **400** على وظيفة شركتك |
+| GET | `/jobs/:id/applicants` | مدير/أدمن | المتقدمون **مع تطبيق البوّابة**: المدير يرى حتى `max_visible_applicants` (5 مجاناً) + `locked_count`؛ الأدمن يرى الكل. كل متقدّم يتضمّن `skill_match`/`matched_skills`/`missing_skills` |
 | PATCH | `/jobs/applications/:id` | مدير/أدمن | تغيير حالة الطلب (PENDING/REVIEWED/SHORTLISTED/REJECTED/ACCEPTED) |
 | GET/POST | `/jobs/:id/reviews` | لا / JWT | مراجعات الشركة |
+
+**شكل طلب التقديم (`POST /jobs/:id/apply`)** — كل الحقول اختيارية عدا الاسم والبريد؛
+يُنشئ سجلاً واحداً لكل `(job, applicant)`:
+
+```jsonc
+{
+  "full_name": "string", "headline": "string",
+  "email": "string", "phone": "string", "location": "string",
+  "photo_url": "url",            // صورة شخصية (مرفوعة عبر uploads/file)
+  "resume_url": "url",           // السيرة الذاتية PDF (مرفوعة عبر uploads/file)
+  "portfolio_url": "url", "linkedin_url": "url",
+  "cover_letter": "string",
+  "skills": ["python", "react"], // تُطابَق مع skills المطلوبة في الوظيفة
+  "education":  [{ "degree", "field", "institution", "start_year", "end_year" }],
+  "experience": [{ "title", "company", "start", "end", "description" }]
+}
+```
+
+**شكل المتقدّم لدى الشركة/الأدمن (`GET /jobs/:id/applicants` → `results[]`)** يضيف فوق ما سبق:
+`applicant` (المستخدم)، و`matched_skills`/`missing_skills`/`skill_match` (نسبة المطابقة 0–100 أو `null`
+إن لم تحدّد الوظيفة مهارات). `email` و`phone` يظهران فقط عند فتح بيانات التواصل في الباقة (أو للأدمن).
 
 ---
 
@@ -165,8 +186,9 @@
 | GET | `/api/v1/student-projects/mine` | JWT | مشاريع المستخدم (كل الحالات) |
 | GET | `/api/v1/student-projects/facets` | عام | قيم `universities` و `majors` للفلاتر |
 | GET/PATCH/DELETE | `/api/v1/student-projects/:id` | GET عام إن منشور؛ تعديل/حذف المالك أو ADMIN | تفاصيل ومتابعة |
-| POST | `/api/v1/student-projects/:id/hide` | ADMIN | إخفاء (`HIDDEN`) |
-| POST | `/api/v1/student-projects/:id/reject` | ADMIN | رفض (`REJECTED`) — جسم: `{ "reason": "..." }` |
+| POST | `/api/v1/student-projects/:id/hide` | ADMIN | إخفاء (`HIDDEN`) — يُسجَّل `project.hidden` |
+| POST | `/api/v1/student-projects/:id/reject` | ADMIN | رفض (`REJECTED`) — جسم: `{ "reason": "..." }`، يُسجَّل `project.rejected` |
+| POST | `/api/v1/student-projects/:id/approve` | ADMIN | إعادة للنشر (`PUBLISHED`) وتمسح سبب الرفض — يُسجَّل `project.approved` |
 
 ### استعلامات القائمة (GET)
 
@@ -203,7 +225,7 @@
 
 ### رفع الصور — `uploads`
 
-| POST | `/api/v1/uploads/file` | JWT | حقل `file` — يُرجع `{ "url", "filename", "content_type", "size" }` — حد 5MB، صيغ: jpeg/png/webp/gif |
+| POST | `/api/v1/uploads/file` | JWT | حقل `file` — يُرجع `{ "url", "filename", "content_type", "size", "inline" }` — حد 5MB، صيغ: jpeg/png/webp/gif **+ application/pdf** (للسير الذاتية). يُتحقَّق من النوع عبر فحص البايتات السحرية (magic bytes)، و SVG ممنوع. `inline=true` للصور الآمنة للعرض المباشر |
 
 ### حقول المستخدم (`auth/me`)
 
@@ -241,17 +263,34 @@
 | الطريقة | المسار | مصادقة | الوصف |
 |---------|--------|--------|--------|
 | GET | `/api/v1/companies/plans` | عام | الباقات المتاحة |
-| GET | `/api/v1/companies/:slug/subscription` | للمدير | الباقة الحالية + الطلب المعلّق + الحدود + الاستخدام |
-| POST | `/api/v1/companies/:slug/subscription` | للمدير | طلب باقة (`plan_id`) → PENDING — **409** إن وُجد طلب معلّق |
+| GET | `/api/v1/companies/:slug/subscription` | للمدير | الباقة الحالية + الطلب المعلّق + الحدود + الاستخدام + `payment_info` (حساب Click للتحويل) |
+| POST | `/api/v1/companies/:slug/subscription/quote` | للمدير | معاينة السعر: `{plan_id, promo_code?}` → `{amount, discount, total, currency, promo_applied, promo_message?}` |
+| POST | `/api/v1/companies/:slug/subscription` | للمدير | طلب باقة `{plan_id, promo_code?, transfer_reference?, proof_url?}` → PENDING + فاتورة `OPEN` (للمدفوعة) تحمل إثبات التحويل — **409** إن وُجد طلب معلّق. موافقة الأدمن (تفعيل) تُسوّي الفاتورة وتُنشئ دفعة `CLICK` |
 | GET | `/api/v1/companies/subscriptions` | ADMIN | كل الطلبات (فلتر `status`) — مرقّم |
 | POST | `/api/v1/companies/subscriptions/:id/activate` | ADMIN | تفعيل (ACTIVE + تاريخ انتهاء؛ يلغي الاشتراك النشط السابق) |
 | POST | `/api/v1/companies/subscriptions/:id/reject` | ADMIN | رفض (`note`) |
+| GET/POST | `/api/v1/companies/admin/plans` | ADMIN | إدارة الباقات (تشمل غير المفعّلة)؛ إنشاء — يُسجَّل `plan.created` |
+| GET/PATCH/DELETE | `/api/v1/companies/admin/plans/:id` | ADMIN | عرض/تعديل/حذف باقة (الحذف يُرفض إن كانت مرتبطة باشتراكات) — `plan.updated`/`plan.deleted` |
+| GET/POST | `/api/v1/companies/admin/promo-codes` | ADMIN | أكواد الخصم (campaigns): `code`, `discount_type` (PERCENT/FIXED), `amount`, `plan?`, `valid_from?`, `valid_until?`, `max_uses?`, `is_active` — `is_redeemable` محسوب |
+| GET/PATCH/DELETE | `/api/v1/companies/admin/promo-codes/:id` | ADMIN | عرض/تعديل/حذف كود خصم — `promocode.created`/`updated`/`deleted` |
+| GET | `/api/v1/companies/admin/invoices` | ADMIN | الفواتير (فلتر `status`/`company`) — مرقّمة؛ تشمل `payments[]` |
+| GET | `/api/v1/companies/admin/invoices/:id` | ADMIN | تفاصيل فاتورة + المدفوعات |
+| POST | `/api/v1/companies/admin/invoices/:id/pay` | ADMIN | تسوية يدوية (`idempotency_key` اختياري) → PAID — يُسجَّل `invoice.paid` |
+| POST | `/api/v1/companies/admin/invoices/:id/void` | ADMIN | إبطال فاتورة مفتوحة — `invoice.voided` |
+| POST | `/api/v1/companies/billing/webhook?gateway=CLIQ\|CLICK` | توقيع HMAC | استقبال إشعار الدفع — يتحقّق من التوقيع (`CLIQ_WEBHOOK_SECRET`)؛ **fail‑closed** بلا سر؛ idempotent عبر `event_id` |
+
+> **الفوترة:** تفعيل اشتراك بباقة مدفوعة (`price>0`) يُنشئ فاتورة `OPEN` تلقائياً (يقبل `promo_code` للخصم). التسوية يدوية الآن (`/pay`) أو عبر webhook موقّع. المال `Decimal` بعملة الباقة (JOD). التسوية ذرّية (`select_for_update`) و idempotent عبر `Payment.idempotency_key` الفريد. أفعال التدقيق: `invoice.paid`/`invoice.voided`.
+
+| GET/POST | `/api/v1/companies/admin/campaigns` | ADMIN | الحملات الترويجية (فلتر `status`، مرقّمة)؛ إنشاء: `company`, `name`, `target_type` (JOB/COMPANY), `job?`, `price`, `starts_at`, `ends_at` — `campaign.created` |
+| GET/PATCH/DELETE | `/api/v1/companies/admin/campaigns/:id` | ADMIN | عرض/تعديل/حذف حملة (الحذف يُلغي تمييز الوظيفة إن كانت نشطة) — `campaign.deleted` |
+| POST | `/api/v1/companies/admin/campaigns/:id/activate` | ADMIN | تفعيل: يميّز الوظيفة الهدف (`is_featured=True`) ويفتح فاتورة للمبلغ (ذرّي) — `campaign.activated` |
+| POST | `/api/v1/companies/admin/campaigns/:id/end` | ADMIN | إنهاء (`EXPIRED`) ويلغي تمييز الوظيفة — `campaign.ended` |
 
 ## 12. الإدارة والتدقيق — `moderation` / `audit` (ADMIN فقط)
 
 | الطريقة | المسار | الوصف |
 |---------|--------|--------|
-| GET | `/api/v1/moderation/overview` | لقطة لوحة الأدمن في طلب واحد (مستخدمون/محتوى/مشاريع/شركات + آخر النشاطات) |
+| GET | `/api/v1/moderation/overview` | لقطة لوحة الأدمن في طلب واحد (مستخدمون/محتوى/مشاريع/شركات + آخر النشاطات + تحليلات النشاط الأسبوعي واستخدام التقنيات وأحدث التقييمات) — الشكل أدناه |
 | GET | `/api/v1/moderation/posts` | كل المنشورات للمراجعة — فلترة `q` (المحتوى/الكاتب)، `type`، `hidden` (`true`/`false`)، `ordering` (`recent`/`top`)، `page`/`limit`. يُرجع `{results,total,page,limit,has_more}` ويُظهر الكاتب الحقيقي حتى للمجهول |
 | PATCH | `/api/v1/moderation/posts/:id` | إخفاء/إظهار منشور (`{is_hidden: bool}`) — قابل للتراجع، يُسجَّل في التدقيق |
 | DELETE | `/api/v1/moderation/posts/:id` | حذف منشور نهائياً (يُسجَّل في التدقيق) |
@@ -266,12 +305,63 @@
 
 > المحتوى المخفي (`is_hidden=True`) يبقى في قاعدة البيانات لكنه يُستبعَد من كل مسارات القراءة العامة (الفيد، الفضفضات، الترند، الوسوم، التفاصيل، التعليقات، الإحصائيات). الإجراءات تُسجَّل بأفعال `post.hidden`/`post.unhidden`/`post.deleted` و`comment.*`.
 
+**شكل `GET /api/v1/moderation/overview`** (كل البيانات حقيقية من قاعدة البيانات):
+
+```json
+{
+  "users":    { "total": 0, "banned": 0, "admins": 0, "companies": 0 },
+  "content":  { "posts": 0, "comments": 0, "reactions": 0 },
+  "projects": { "published": 0, "hidden": 0, "rejected": 0 },
+  "companies":{ "total": 0, "verified": 0, "jobs": 0 },
+  "recent_activity": [ /* آخر 10 أحداث تدقيق (AuditEvent) */ ],
+  "weekly_activity": [
+    { "date": "2026-05-28", "actions": 0, "active_users": 0 }
+    /* 7 عناصر، الأقدم أولاً؛ actions=عدد أحداث التدقيق، active_users=الفاعلون المميَّزون */
+  ],
+  "tech_usage": [
+    { "name": "React", "value": 12 }
+    /* أعلى 6 تقنيات من tech_stack للمشاريع المنشورة، تنازلياً */
+  ],
+  "recent_reviews": [
+    { "id": 1, "author": "username", "job_title": "...", "rating": 5, "comment": "...", "created_at": "ISO" }
+    /* أحدث 5 تقييمات (JobReview) */
+  ]
+}
+```
+
 ## 13. تحديثات المستخدمين والصلاحيات (`users`)
 
 | الطريقة | المسار | مصادقة | الوصف |
 |---------|--------|--------|--------|
 | POST | `/api/v1/users/:id/role` | ADMIN | تعيين الدور (المسار الوحيد الذي يغيّر `role`) |
 | POST | `/api/v1/users/:id/ban` | ADMIN | حظر/رفع الحظر عبر `is_active` |
+| POST | `/api/v1/users/:id/reputation` | ADMIN | تعديل النقاط (`{points}` مقيَّد بـ ±100) |
+| GET | `/api/v1/users/:id/admin-detail` | ADMIN | لقطة كاملة لحساب واحد في طلب واحد — الشكل أدناه |
+| POST | `/api/v1/users/:id/set-password` | ADMIN | تعيين كلمة مرور مؤقتة (`{password}`، ≥ 8 أحرف + مدقّقات Django) — يُرفض على مدير آخر؛ يُسجَّل `user.password_set` دون كلمة المرور |
+
+**شكل `GET /api/v1/users/:id/admin-detail`** (للأدمن فقط؛ `date_joined`/`last_login` تظهر هنا فقط):
+
+```json
+{
+  "user": { "id":1, "username":"...", "email":"...", "role":"USER|ADMIN|COMPANY",
+            "rank":"...", "reputation_points":0, "is_active":true,
+            "is_staff":false, "is_superuser":false, "date_joined":"ISO", "last_login":"ISO|null",
+            "bio":"...", "university":"...", "major":"...", "github_username":"...",
+            "profile_visibility":"PUBLIC|PRIVATE", "show_posts":true, "show_code":true,
+            "show_ideas":true, "show_activity":true, "avatar_url":"...", "banner_url":"...", "status_text":"..." },
+  "stats": { "posts":0, "comments":0, "projects":0, "jobs_created":0, "applications":0,
+             "reputation_points":0, "rank":"NOVICE" },
+  "companies": {
+    "items": [ { "id":1, "name":"...", "slug":"...", "status":"PENDING|APPROVED|REJECTED",
+                 "is_verified":false, "follower_count":0, "job_count":0, "created_at":"ISO" } ],
+    "counts": { "PENDING":0, "APPROVED":0, "REJECTED":0 }, "total":0
+  },
+  "memberships": [ { "company_id":1, "name":"...", "slug":"...", "status":"...", "is_verified":false, "role":"OWNER|ADMIN|EMPLOYEE" } ],
+  "recent_activity": [ /* آخر 10 أحداث تدقيق (AuditEvent) للمستخدم */ ]
+}
+```
+
+> ملاحظات: الموافقة على طلب إنشاء شركة تتم عبر مسارات `companies` القائمة (`/companies/:slug/approve|reject|verify`)؛ إنشاء شركة جديدة (`POST /companies`) يبدأ بحالة `PENDING`. تعديل بيانات الشركة من لوحة المستخدم يستخدم `PATCH /companies/:slug` (الأدمن يَعبُر فحص `is_company_manager`).
 
 **ملاحظات أمنية مطبّقة:** الصلاحية الافتراضية أصبحت `IsAuthenticated` (المسارات العامة تعلن
 `AllowAny` صراحةً)؛ `role`/`rank`/`reputation_points`/`is_active` للقراءة فقط في `UserSerializer`؛
@@ -359,3 +449,4 @@ GitHub: بيانات عامة فقط (لا OAuth/رموز) واسم المستخ
 | 2026-05-21 | لوحة إدارة المحتوى: قائمة/بحث/فلترة المنشورات والتعليقات + إخفاء/إظهار (`is_hidden`) + حذف نهائي + تدقيق؛ المحتوى المخفي يُستبعَد من المسارات العامة | — |
 | 2026-05-22 | محرّك التوظيف (backend): توسعة Job (أنواع/حالة/مميّز) + JobApplication + باقات اشتراك (FREE/BASIC/PRO/ENTERPRISE) + بوّابة المتقدمين (5 مجاناً) + طلب/تفعيل الاشتراك عبر الأدمن. الواجهات لاحقاً | — |
 | 2026-05-22 | واجهات التوظيف: صفحة الوظائف العامة (بحث/فلترة + تقديم) + بوابة الشركة (نشر وظائف + متابعة المتقدمين بالبوّابة + الاشتراك) + لوحة الأدمن (إشراف الوظائف + تمييز + طابور موافقة الاشتراكات) | — |
+| 2026-06-04 | نظام تقديم احترافي: توسعة `JobApplication` (اسم/مسمّى/هاتف/موقع/صورة/تعليم/خبرات/مهارات/روابط) + مطابقة المهارات مع متطلبات الوظيفة (`skill_match`) + رفع PDF للسيرة الذاتية (فحص magic-byte) + نموذج تقديم غني + عرض احترافي لدى الشركة والأدمن | — |

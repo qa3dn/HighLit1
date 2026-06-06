@@ -1,12 +1,14 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import {
   addComment,
   createPost,
   getFeed,
+  getPost,
   toggleReaction,
   type CreatePostPayload,
   type FeedParams,
@@ -21,6 +23,15 @@ export function useFeed(params: Omit<FeedParams, 'page'>) {
     queryFn: ({ pageParam }) => getFeed({ ...params, page: pageParam, limit: FEED_LIMIT }),
     initialPageParam: 1,
     getNextPageParam: (last: FeedResponse) => (last.has_more ? last.page + 1 : undefined),
+    staleTime: 30_000,
+  })
+}
+
+export function usePost(postId: number | string | undefined) {
+  return useQuery({
+    queryKey: ['post', String(postId)],
+    queryFn: () => getPost(postId!),
+    enabled: postId !== undefined && postId !== '' && postId !== 'undefined',
     staleTime: 30_000,
   })
 }

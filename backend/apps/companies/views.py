@@ -17,6 +17,7 @@ from apps.posts.models import Job
 from apps.posts.serializers import JobSerializer
 from common.pagination import DefaultPagination
 from common.permissions import IsAdmin
+from .gateways import GatewayError, get_gateway
 from .models import (
     Company,
     CompanyFollow,
@@ -26,6 +27,10 @@ from .models import (
     CompanyPostComment,
     CompanyPostReaction,
     CompanySubscription,
+    Invoice,
+    Payment,
+    PromoCode,
+    PromotionCampaign,
     SubscriptionPlan,
 )
 from .permissions import is_company_manager
@@ -37,9 +42,20 @@ from .serializers import (
     CompanyPostSerializer,
     CompanySerializer,
     CompanySubscriptionSerializer,
+    InvoiceSerializer,
+    PromoCodeSerializer,
+    PromotionCampaignSerializer,
     SubscriptionPlanSerializer,
 )
-from .services import active_job_count, active_subscription, plan_limits
+from .services import (
+    active_job_count,
+    active_subscription,
+    create_subscription_invoice,
+    payment_info,
+    plan_limits,
+    quote_plan,
+    settle_invoice,
+)
 
 User = get_user_model()
 
@@ -410,6 +426,17 @@ class SubscriptionPlanListView(generics.ListAPIView):
         return SubscriptionPlan.objects.filter(is_active=True)
 
 
+def _resolve_promo(code, plan):
+    """Return a redeemable PromoCode that applies to `plan`, or None."""
+    code = (code or "").strip()
+    if not code:
+        return None
+    promo = PromoCode.objects.filter(code=code).first()
+    if promo and promo.is_redeemable() and promo.plan_id in (None, plan.id):
+        return promo
+    return None
+
+
 class CompanySubscriptionView(APIView):
     """A company manager's view of their plan + usage, and where they request
     a new plan (creates a PENDING subscription for an admin to activate)."""
@@ -431,6 +458,7 @@ class CompanySubscriptionView(APIView):
                 "pending": CompanySubscriptionSerializer(pending).data if pending else None,
                 "limits": plan_limits(company),
                 "usage": {"active_jobs": active_job_count(company)},
+                "payment_info": payment_info(),
             }
         )
 
@@ -444,12 +472,24 @@ class CompanySubscriptionView(APIView):
             return Response(
                 {"detail": "لديك طلب اشتراك قيد المراجعة بالفعل."}, status=status.HTTP_409_CONFLICT
             )
+        promo = _resolve_promo(request.data.get("promo_code"), plan)
         sub = CompanySubscription.objects.create(
             company=company,
             plan=plan,
             requested_by=request.user,
             status=CompanySubscription.Status.PENDING,
         )
+        # For paid plans, open an invoice now (carrying the Click transfer proof);
+        # an admin verifies the proof and activates, which settles it.
+        from decimal import Decimal
+
+        if Decimal(plan.price) > 0:
+            create_subscription_invoice(
+                sub,
+                promo,
+                transfer_reference=(request.data.get("transfer_reference") or "").strip(),
+                proof_url=(request.data.get("proof_url") or "").strip(),
+            )
         record_event(
             request.user,
             "subscription.requested",
@@ -459,6 +499,27 @@ class CompanySubscriptionView(APIView):
             request=request,
         )
         return Response(CompanySubscriptionSerializer(sub).data, status=status.HTTP_201_CREATED)
+
+
+class CompanySubscriptionQuoteView(APIView):
+    """Price preview for a plan + optional promo, so the company knows the exact
+    amount to transfer via Click before submitting proof."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, slug):
+        company = get_object_or_404(Company, slug=slug)
+        _require_manager(request.user, company)
+        plan = get_object_or_404(
+            SubscriptionPlan, pk=request.data.get("plan_id") or request.data.get("plan"), is_active=True
+        )
+        code = (request.data.get("promo_code") or "").strip()
+        promo = _resolve_promo(code, plan)
+        quote = quote_plan(plan, promo)
+        quote["promo_applied"] = promo is not None
+        if code and promo is None:
+            quote["promo_message"] = "كود غير صالح أو غير منطبق على هذه الباقة."
+        return Response(quote)
 
 
 class AdminSubscriptionListView(generics.ListAPIView):
@@ -503,6 +564,23 @@ class AdminSubscriptionActivateView(APIView):
             payload={"company": sub.company.slug, "plan": sub.plan.tier},
             request=request,
         )
+        # Billing: if the company already opened an invoice (Click flow with
+        # transfer proof), approve/settle it now; otherwise open one for paid plans.
+        from decimal import Decimal
+
+        existing = sub.invoices.filter(status=Invoice.Status.OPEN).order_by("created_at").first()
+        if existing:
+            settle_invoice(
+                existing.id,
+                amount=existing.total,
+                gateway=Payment.Gateway.CLICK,
+                idempotency_key=f"approve-invoice-{existing.id}",
+                gateway_ref=existing.transfer_reference,
+                raw={"proof_url": existing.proof_url, "approved_by": request.user.id},
+                created_by=request.user,
+            )
+        elif Decimal(sub.plan.price) > 0:
+            create_subscription_invoice(sub, _resolve_promo(request.data.get("promo_code"), sub.plan))
         return Response(CompanySubscriptionSerializer(sub).data)
 
 
@@ -525,3 +603,289 @@ class AdminSubscriptionRejectView(APIView):
             request=request,
         )
         return Response(CompanySubscriptionSerializer(sub).data)
+
+
+# ── Admin: subscription-plan management ──────────────────────────────────────
+
+
+class AdminPlanListCreateView(generics.ListCreateAPIView):
+    """Admin CRUD over billing tiers (lists inactive plans too, unlike the
+    public /plans endpoint)."""
+
+    serializer_class = SubscriptionPlanSerializer
+    permission_classes = [IsAdmin]
+    queryset = SubscriptionPlan.objects.all().order_by("sort_order", "price")
+
+    def perform_create(self, serializer):
+        plan = serializer.save()
+        record_event(
+            self.request.user, "plan.created", target_type="subscription_plan",
+            target_id=str(plan.id), payload={"tier": plan.tier}, request=self.request,
+        )
+
+
+class AdminPlanDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = SubscriptionPlanSerializer
+    permission_classes = [IsAdmin]
+    queryset = SubscriptionPlan.objects.all()
+
+    def perform_update(self, serializer):
+        plan = serializer.save()
+        record_event(
+            self.request.user, "plan.updated", target_type="subscription_plan",
+            target_id=str(plan.id), request=self.request,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        plan = self.get_object()
+        # plan FK is PROTECT on CompanySubscription — refuse if any reference it.
+        if plan.subscriptions.exists():
+            return Response(
+                {"detail": "لا يمكن حذف باقة مرتبطة باشتراكات. عطّلها بدلاً من حذفها."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        record_event(
+            request.user, "plan.deleted", target_type="subscription_plan",
+            target_id=str(plan.id), payload={"tier": plan.tier}, request=request,
+        )
+        plan.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ── Admin: promo codes (discount campaigns) ──────────────────────────────────
+
+
+class AdminPromoCodeListCreateView(generics.ListCreateAPIView):
+    serializer_class = PromoCodeSerializer
+    permission_classes = [IsAdmin]
+    queryset = PromoCode.objects.select_related("plan").all()
+
+    def perform_create(self, serializer):
+        promo = serializer.save()
+        record_event(
+            self.request.user, "promocode.created", target_type="promo_code",
+            target_id=str(promo.id), payload={"code": promo.code}, request=self.request,
+        )
+
+
+class AdminPromoCodeDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PromoCodeSerializer
+    permission_classes = [IsAdmin]
+    queryset = PromoCode.objects.select_related("plan").all()
+
+    def perform_update(self, serializer):
+        promo = serializer.save()
+        record_event(
+            self.request.user, "promocode.updated", target_type="promo_code",
+            target_id=str(promo.id), request=self.request,
+        )
+
+    def perform_destroy(self, instance):
+        record_event(
+            self.request.user, "promocode.deleted", target_type="promo_code",
+            target_id=str(instance.id), payload={"code": instance.code}, request=self.request,
+        )
+        instance.delete()
+
+
+# ── Billing: invoices, manual settlement, gateway webhook ────────────────────
+
+
+class AdminInvoiceListView(generics.ListAPIView):
+    serializer_class = InvoiceSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = DefaultPagination
+
+    def get_queryset(self):
+        qs = Invoice.objects.select_related("company", "promo_code").prefetch_related("payments")
+        status_param = self.request.query_params.get("status")
+        company = self.request.query_params.get("company")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        if company:
+            qs = qs.filter(company__slug=company)
+        return qs.order_by("-created_at")
+
+
+class AdminInvoiceDetailView(generics.RetrieveAPIView):
+    serializer_class = InvoiceSerializer
+    permission_classes = [IsAdmin]
+    queryset = Invoice.objects.select_related("company", "promo_code").prefetch_related("payments")
+
+
+class AdminRecordPaymentView(APIView):
+    """Manual settlement — an admin marks an OPEN invoice paid. Idempotent via an
+    optional client-supplied key (otherwise generated)."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        invoice = get_object_or_404(Invoice, pk=pk)
+        if invoice.status == Invoice.Status.VOID:
+            return Response({"detail": "الفاتورة ملغاة."}, status=status.HTTP_400_BAD_REQUEST)
+        key = request.data.get("idempotency_key") or f"manual-{invoice.id}-{uuid.uuid4().hex}"
+        _, created = settle_invoice(
+            invoice.id,
+            amount=invoice.total,
+            gateway=Payment.Gateway.MANUAL,
+            idempotency_key=key,
+            created_by=request.user,
+        )
+        if created:
+            record_event(
+                request.user, "invoice.paid", target_type="invoice", target_id=str(invoice.id),
+                payload={"gateway": "MANUAL", "amount": str(invoice.total)}, request=request,
+            )
+        invoice.refresh_from_db()
+        return Response(InvoiceSerializer(invoice).data)
+
+
+class AdminVoidInvoiceView(APIView):
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        invoice = get_object_or_404(Invoice, pk=pk)
+        if invoice.status == Invoice.Status.PAID:
+            return Response({"detail": "لا يمكن إبطال فاتورة مدفوعة."}, status=status.HTTP_400_BAD_REQUEST)
+        invoice.status = Invoice.Status.VOID
+        invoice.save(update_fields=["status"])
+        record_event(
+            request.user, "invoice.voided", target_type="invoice", target_id=str(invoice.id), request=request
+        )
+        return Response(InvoiceSerializer(invoice).data)
+
+
+class PaymentWebhookView(APIView):
+    """Gateway → platform. Authenticated by the provider's HMAC signature (not
+    DRF auth). Idempotent: a re-delivered event settles at most once."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes: list = []
+
+    def post(self, request):
+        try:
+            gateway = get_gateway(request.query_params.get("gateway", "CLIQ"))
+            event = gateway.verify_webhook(request.headers, request.body)
+        except GatewayError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if event.get("status") != "SUCCEEDED":
+            return Response({"ok": True, "ignored": True})
+        invoice_id, key = event.get("invoice_id"), event.get("idempotency_key")
+        if not invoice_id or not key:
+            return Response({"detail": "missing invoice_id or event id"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            invoice = Invoice.objects.get(pk=invoice_id)
+        except Invoice.DoesNotExist:
+            return Response({"detail": "unknown invoice"}, status=status.HTTP_404_NOT_FOUND)
+        _, created = settle_invoice(
+            invoice.id,
+            amount=event.get("amount") or invoice.total,
+            gateway=gateway.name,
+            idempotency_key=key,
+            gateway_ref=event.get("gateway_ref", ""),
+            raw=event,
+        )
+        if created:
+            record_event(
+                None, "invoice.paid", target_type="invoice", target_id=str(invoice.id),
+                payload={"gateway": gateway.name}, request=request,
+            )
+        return Response({"ok": True})
+
+
+# ── Promotion campaigns (paid, time-boxed featuring) ─────────────────────────
+
+
+class AdminCampaignListCreateView(generics.ListCreateAPIView):
+    serializer_class = PromotionCampaignSerializer
+    permission_classes = [IsAdmin]
+    pagination_class = DefaultPagination
+
+    def get_queryset(self):
+        qs = PromotionCampaign.objects.select_related("company", "job")
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            qs = qs.filter(status=status_param)
+        return qs.order_by("-created_at")
+
+    def perform_create(self, serializer):
+        campaign = serializer.save(
+            created_by=self.request.user, status=PromotionCampaign.Status.PENDING
+        )
+        record_event(
+            self.request.user, "campaign.created", target_type="campaign",
+            target_id=str(campaign.id), payload={"name": campaign.name}, request=self.request,
+        )
+
+
+class AdminCampaignDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = PromotionCampaignSerializer
+    permission_classes = [IsAdmin]
+    queryset = PromotionCampaign.objects.select_related("company", "job")
+
+    def perform_destroy(self, instance):
+        # If an active job promotion is deleted, clear the feature flag.
+        if (
+            instance.status == PromotionCampaign.Status.ACTIVE
+            and instance.target_type == PromotionCampaign.Target.JOB
+            and instance.job_id
+        ):
+            Job.objects.filter(pk=instance.job_id).update(is_featured=False)
+        record_event(
+            self.request.user, "campaign.deleted", target_type="campaign",
+            target_id=str(instance.id), request=self.request,
+        )
+        instance.delete()
+
+
+class AdminCampaignActivateView(APIView):
+    """Activate a campaign: feature the target job and (for paid campaigns) open
+    an invoice. Atomic so the feature flag and invoice move together."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        from decimal import Decimal
+
+        campaign = get_object_or_404(
+            PromotionCampaign.objects.select_related("company", "job"), pk=pk
+        )
+        with transaction.atomic():
+            campaign.status = PromotionCampaign.Status.ACTIVE
+            campaign.activated_by = request.user
+            if campaign.target_type == PromotionCampaign.Target.JOB and campaign.job_id:
+                Job.objects.filter(pk=campaign.job_id).update(is_featured=True)
+            if campaign.invoice_id is None and Decimal(campaign.price) > 0:
+                campaign.invoice = Invoice.objects.create(
+                    company=campaign.company,
+                    description=f"حملة ترويجية: {campaign.name}",
+                    amount=campaign.price,
+                    total=campaign.price,
+                    currency=campaign.currency,
+                    status=Invoice.Status.OPEN,
+                )
+            campaign.save(update_fields=["status", "activated_by", "invoice", "updated_at"])
+        record_event(
+            request.user, "campaign.activated", target_type="campaign",
+            target_id=str(campaign.id), payload={"company": campaign.company.slug}, request=request,
+        )
+        return Response(PromotionCampaignSerializer(campaign).data)
+
+
+class AdminCampaignEndView(APIView):
+    """End a campaign (EXPIRED) and clear the target job's feature flag."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request, pk):
+        campaign = get_object_or_404(PromotionCampaign.objects.select_related("job"), pk=pk)
+        campaign.status = PromotionCampaign.Status.EXPIRED
+        if campaign.target_type == PromotionCampaign.Target.JOB and campaign.job_id:
+            Job.objects.filter(pk=campaign.job_id).update(is_featured=False)
+        campaign.save(update_fields=["status", "updated_at"])
+        record_event(
+            request.user, "campaign.ended", target_type="campaign",
+            target_id=str(campaign.id), request=request,
+        )
+        return Response(PromotionCampaignSerializer(campaign).data)

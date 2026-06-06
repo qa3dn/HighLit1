@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    ApproveProjectView,
     HideProjectView,
     RejectProjectView,
     StudentProjectDetailView,
@@ -16,4 +17,5 @@ urlpatterns = [
     path("<int:pk>", StudentProjectDetailView.as_view()),
     path("<int:pk>/hide", HideProjectView.as_view()),
     path("<int:pk>/reject", RejectProjectView.as_view()),
+    path("<int:pk>/approve", ApproveProjectView.as_view()),
 ]

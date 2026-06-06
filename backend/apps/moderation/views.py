@@ -1,6 +1,10 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q
+from django.db.models.functions import TruncDate
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,7 +13,7 @@ from apps.audit.models import AuditEvent
 from apps.audit.serializers import AuditEventSerializer
 from apps.audit.services import record_event
 from apps.companies.models import Company
-from apps.posts.models import Comment, Job, Post, Reaction
+from apps.posts.models import Comment, Job, JobReview, Post, Reaction
 from apps.posts.serializers import JobSerializer
 from apps.student_projects.models import StudentProject
 from common.permissions import IsAdmin
@@ -20,6 +24,75 @@ User = get_user_model()
 
 ADMIN_PAGE_SIZE = 20
 ADMIN_MAX_PAGE_SIZE = 100
+
+# How many days the overview activity chart spans, and how many rows the
+# tech-usage / reviews panels show.
+OVERVIEW_ACTIVITY_DAYS = 7
+OVERVIEW_TECH_LIMIT = 6
+OVERVIEW_REVIEWS_LIMIT = 5
+
+
+def _weekly_activity(days: int = OVERVIEW_ACTIVITY_DAYS):
+    """Per-day audit counts for the last ``days`` days, oldest first.
+
+    ``actions`` is the number of recorded events that day; ``active_users`` is
+    the number of distinct (non-system) actors. Missing days are zero-filled so
+    the chart always has a full, contiguous week."""
+    start = timezone.localdate() - timedelta(days=days - 1)
+    rows = (
+        AuditEvent.objects.filter(created_at__date__gte=start)
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .order_by("day")
+        .annotate(actions=Count("id"), active_users=Count("actor", distinct=True))
+    )
+    by_day = {row["day"]: row for row in rows}
+    series = []
+    for offset in range(days):
+        current = start + timedelta(days=offset)
+        row = by_day.get(current)
+        series.append(
+            {
+                "date": current.isoformat(),
+                "actions": row["actions"] if row else 0,
+                "active_users": row["active_users"] if row else 0,
+            }
+        )
+    return series
+
+
+def _tech_usage(limit: int = OVERVIEW_TECH_LIMIT):
+    """Most-used tech-stack entries across published projects.
+
+    ``tech_stack`` is an unstructured JSON list, so we aggregate in Python — the
+    same approach as ``posts.TagsView``."""
+    counts: dict[str, int] = {}
+    published = StudentProject.objects.filter(
+        status=StudentProject.Status.PUBLISHED
+    ).only("tech_stack")
+    for project in published:
+        for tech in project.tech_stack:
+            if isinstance(tech, str) and tech.strip():
+                name = tech.strip()
+                counts[name] = counts.get(name, 0) + 1
+    ordered = sorted(counts.items(), key=lambda item: -item[1])[:limit]
+    return [{"name": name, "value": value} for name, value in ordered]
+
+
+def _recent_reviews(limit: int = OVERVIEW_REVIEWS_LIMIT):
+    """Latest job reviews (real user feedback) for the overview panel."""
+    reviews = JobReview.objects.select_related("user", "job").order_by("-created_at")[:limit]
+    return [
+        {
+            "id": review.id,
+            "author": review.user.username if review.user_id else "—",
+            "job_title": review.job.title if review.job_id else "",
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at.isoformat(),
+        }
+        for review in reviews
+    ]
 
 
 def _paginate(request, queryset):
@@ -82,6 +155,9 @@ class ModerationOverviewView(APIView):
                 "recent_activity": AuditEventSerializer(
                     AuditEvent.objects.select_related("actor")[:10], many=True
                 ).data,
+                "weekly_activity": _weekly_activity(),
+                "tech_usage": _tech_usage(),
+                "recent_reviews": _recent_reviews(),
             }
         )
 

@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-import { Save, Shield, Github } from 'lucide-react'
+import { useState, type ChangeEvent } from 'react'
+import { Save, Shield, Github, Camera, Loader2 } from 'lucide-react'
 import { useCurrentUser } from '@/hooks/useAuth'
 import { useUpdateProfile } from '@/hooks/useProfile'
+import { uploadFile } from '@/lib/api/uploads'
+import { getApiErrorMessage } from '@/lib/apiError'
 import { playClickSound } from '@/lib/audio'
 import type { ProfileUpdate } from '@/lib/api/profile'
 
@@ -18,8 +20,10 @@ export function ProfileSettings() {
   const { data: user } = useCurrentUser()
   const update = useUpdateProfile(user?.id ?? '')
   const [saved, setSaved] = useState(false)
-
   const [form, setForm] = useState<ProfileUpdate>({})
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [uploadingBanner, setUploadingBanner] = useState(false)
+  const [uploadError, setUploadError] = useState('')
 
   if (!user) {
     return <div className="py-12 text-center font-mono text-text-secondary">سجّل الدخول لتعديل ملفك.</div>
@@ -34,6 +38,30 @@ export function ProfileSettings() {
   const set = <K extends keyof ProfileUpdate>(key: K, val: ProfileUpdate[K]) =>
     setForm((prev) => ({ ...prev, [key]: val }))
 
+  const uploadImage = async (
+    event: ChangeEvent<HTMLInputElement>,
+    field: 'avatar_url' | 'banner_url',
+  ) => {
+    const file = event.target.files?.[0]
+    event.target.value = '' // allow re-selecting the same file
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setUploadError('الرجاء اختيار ملف صورة (JPEG/PNG/WebP).')
+      return
+    }
+    setUploadError('')
+    const setUploading = field === 'avatar_url' ? setUploadingAvatar : setUploadingBanner
+    setUploading(true)
+    try {
+      const res = await uploadFile(file)
+      set(field, res.url)
+    } catch (err) {
+      setUploadError(getApiErrorMessage(err, 'تعذّر رفع الصورة.'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const handleSave = () => {
     playClickSound()
     update.mutate(form, {
@@ -46,6 +74,8 @@ export function ProfileSettings() {
   }
 
   const isPrivate = value('profile_visibility', 'PUBLIC') === 'PRIVATE'
+  const avatarUrl = value('avatar_url', '') as string
+  const bannerUrl = value('banner_url', '') as string
 
   return (
     <div className="mx-auto max-w-2xl space-y-6" dir="rtl">
@@ -70,23 +100,55 @@ export function ProfileSettings() {
             className="w-full rounded-lg border border-gray-dark bg-bg px-3 py-2 text-sm text-text outline-none focus:border-accent"
           />
         </Field>
+        {/* Avatar + banner upload (with live preview) */}
+        <div className="space-y-2">
+          <span className="block text-sm text-text-secondary">الصورة الشخصية والغلاف</span>
+          <div className="relative mb-9">
+            {/* Banner */}
+            <label className="group relative block h-32 w-full cursor-pointer overflow-hidden rounded-xl border border-gray-dark bg-gradient-to-l from-accent/15 via-bg to-bg sm:h-40">
+              {bannerUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={bannerUrl} alt="" className="h-full w-full object-cover" />
+              )}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+                {uploadingBanner ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-white" />
+                ) : (
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-white">
+                    <Camera className="h-4 w-4" /> تغيير الغلاف
+                  </span>
+                )}
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadImage(e, 'banner_url')} />
+            </label>
+
+            {/* Avatar, overlapping the banner */}
+            <label className="group absolute -bottom-7 right-4 h-20 w-20 cursor-pointer overflow-hidden rounded-2xl border-4 border-gray-light bg-bg">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center font-mono text-2xl font-bold text-accent">
+                  {(user.username || '?').charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition group-hover:opacity-100">
+                {uploadingAvatar ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-white" />
+                ) : (
+                  <Camera className="h-4 w-4 text-white" />
+                )}
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => uploadImage(e, 'avatar_url')} />
+            </label>
+          </div>
+          {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+          <p className="text-xs text-text-secondary">
+            انقر على الغلاف أو الصورة لرفع صورة من جهازك (JPEG/PNG/WebP، حتى 5 ميغابايت).
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="رابط الصورة">
-            <input
-              value={value('avatar_url', '') as string}
-              onChange={(e) => set('avatar_url', e.target.value)}
-              dir="ltr"
-              className="w-full rounded-lg border border-gray-dark bg-bg px-3 py-2 text-sm text-text outline-none focus:border-accent"
-            />
-          </Field>
-          <Field label="رابط الغلاف (Banner)">
-            <input
-              value={value('banner_url', '') as string}
-              onChange={(e) => set('banner_url', e.target.value)}
-              dir="ltr"
-              className="w-full rounded-lg border border-gray-dark bg-bg px-3 py-2 text-sm text-text outline-none focus:border-accent"
-            />
-          </Field>
           <Field label="الجامعة">
             <input
               value={value('university', '') as string}

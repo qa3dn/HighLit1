@@ -1,36 +1,33 @@
 'use client'
 
 import Link from 'next/link'
+import { MessageSquare, Code2, Mic, Briefcase, ArrowLeft } from 'lucide-react'
 import { playClickSound } from '@/lib/audio'
 
 const sections = [
   {
     title: 'فش غلك',
     path: '/rants',
+    icon: MessageSquare,
     description: 'مساحة آمنة بتحكي فيها عن الضغط، المشاكل، أو حتى المواقف المضحكة بالشغل.',
-    code: '/rants',
-    color: 'from-blue-500 to-cyan-500',
   },
   {
     title: 'فرجينا شغلك',
     path: '/code',
+    icon: Code2,
     description: 'شارك مشاريعك كصور، فيديو، أو GitHub مع تفاصيل جامعتك وتخصصك للفلترة والاكتشاف.',
-    code: '/code',
-    color: 'from-purple-500 to-pink-500',
   },
   {
     title: 'قعدة مبرمجين',
     path: '/spaces',
+    icon: Mic,
     description: 'جلسات صوتية ونقاشات صريحة عن التقنية والحياة المهنية بالأردن.',
-    code: '/spaces',
-    color: 'from-orange-500 to-red-500',
   },
   {
     title: 'وين في شغل؟',
     path: '/jobs',
+    icon: Briefcase,
     description: 'فرص عمل وتجارب حقيقية من السوق، وبدون ما نضحك عليك.',
-    code: '/jobs',
-    color: 'from-green-500 to-emerald-500',
   },
 ]
 
@@ -41,33 +38,41 @@ export function PlatformSections() {
         <h2 className="mb-4 text-center text-2xl font-bold text-text sm:text-3xl md:text-display-sm">
           شو بتلاقي داخل HighLit؟
         </h2>
-        <div className="text-center mb-12 font-mono text-accent text-sm" dir="ltr">
+        <div className="mb-12 text-center font-mono text-sm text-accent" dir="ltr">
           <span className="glow-accent">const features = {'['}</span>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {sections.map((section, index) => (
-            <Link
-              key={index}
-              href={section.path}
-              onClick={playClickSound}
-              className="group block"
-            >
-              <div className="bg-gray-light rounded-2xl p-8 border border-gray-dark hover:border-accent hover:shadow-glow transition-all duration-300 h-full">
-                <div className="font-mono text-accent text-xs mb-4 glow-accent" dir="ltr">
-                  {section.code}
+
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {sections.map((section) => {
+            const Icon = section.icon
+            return (
+              <Link key={section.path} href={section.path} onClick={playClickSound} className="group block">
+                <div className="flex h-full flex-col rounded-2xl border border-gray-dark bg-bg p-8 transition-all duration-300 hover:border-accent hover:shadow-glow">
+                  <div className="mb-6 flex items-center justify-between">
+                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-accent/20 bg-accent/10 text-accent transition-transform duration-300 group-hover:scale-110">
+                      <Icon className="h-7 w-7" aria-hidden />
+                    </div>
+                    <span className="font-mono text-xs text-text-secondary transition-colors group-hover:text-accent" dir="ltr">
+                      {section.path}
+                    </span>
+                  </div>
+
+                  <h3 className="mb-3 text-2xl font-semibold text-text transition-colors group-hover:text-accent">
+                    {section.title}
+                  </h3>
+                  <p className="leading-relaxed text-text-secondary">{section.description}</p>
+
+                  <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-accent opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    استكشف
+                    <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" aria-hidden />
+                  </span>
                 </div>
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${section.color} mb-6 group-hover:scale-110 transition-transform duration-300`}></div>
-                <h3 className="text-2xl font-semibold mb-4 text-text group-hover:text-accent transition-colors">
-                  {section.title}
-                </h3>
-                <p className="text-text-secondary leading-relaxed">
-                  {section.description}
-                </p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
-        <div className="text-center mt-12 font-mono text-accent text-sm" dir="ltr">
+
+        <div className="mt-12 text-center font-mono text-sm text-accent" dir="ltr">
           <span className="glow-accent">{'];'}</span>
         </div>
       </div>

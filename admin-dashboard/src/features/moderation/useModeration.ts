@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  approvePost,
   deleteComment,
   deletePost,
   listComments,
   listPosts,
+  rejectPost,
   setCommentHidden,
   setPostHidden,
   type CommentFilters,
@@ -55,5 +57,21 @@ export function useDeleteComment() {
   return useMutation({
     mutationFn: (id: number) => deleteComment(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['mod-comments'] }),
+  });
+}
+
+export function useApprovePost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => approvePost(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mod-posts'] }),
+  });
+}
+
+export function useRejectPost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => rejectPost(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mod-posts'] }),
   });
 }

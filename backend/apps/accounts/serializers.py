@@ -47,6 +47,43 @@ class UserSerializer(serializers.ModelSerializer):
         return cleaned
 
 
+class AdminUserDetailSerializer(serializers.ModelSerializer):
+    """Admin-only full account view. Read-only. Includes the account timestamps
+    and staff flags that the public/self serializers intentionally omit;
+    `date_joined`/`last_login` are therefore exposed only on the admin endpoint."""
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "username",
+            "email",
+            "role",
+            "rank",
+            "reputation_points",
+            "bio",
+            "avatar_url",
+            "banner_url",
+            "status_text",
+            "university",
+            "major",
+            "github_username",
+            "profile_visibility",
+            "show_posts",
+            "show_code",
+            "show_ideas",
+            "show_activity",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "first_name",
+            "last_name",
+            "date_joined",
+            "last_login",
+        )
+        read_only_fields = fields
+
+
 class PublicProfileSerializer(serializers.ModelSerializer):
     """Public-safe identity. Never exposes email or privilege fields."""
 

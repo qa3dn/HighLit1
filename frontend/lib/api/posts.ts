@@ -53,6 +53,11 @@ export async function getFeed(params: FeedParams = {}): Promise<FeedResponse> {
   return data
 }
 
+export async function getPost(postId: number | string): Promise<Post> {
+  const { data } = await api.get<Post>(`/posts/${postId}`)
+  return data
+}
+
 export interface CreatePostPayload {
   content: string
   title?: string

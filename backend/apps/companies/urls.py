@@ -1,10 +1,23 @@
 from django.urls import path
 
 from .views import (
+    AdminCampaignActivateView,
+    AdminCampaignDetailView,
+    AdminCampaignEndView,
+    AdminCampaignListCreateView,
     AdminCompanyListView,
+    AdminInvoiceDetailView,
+    AdminInvoiceListView,
+    AdminPlanDetailView,
+    AdminPlanListCreateView,
+    AdminPromoCodeDetailView,
+    AdminPromoCodeListCreateView,
+    AdminRecordPaymentView,
     AdminSubscriptionActivateView,
     AdminSubscriptionListView,
     AdminSubscriptionRejectView,
+    AdminVoidInvoiceView,
+    PaymentWebhookView,
     CompanyAnalyticsView,
     CompanyApproveView,
     CompanyDetailView,
@@ -18,6 +31,7 @@ from .views import (
     CompanyPostListCreateView,
     CompanyPostReactionView,
     CompanyRejectView,
+    CompanySubscriptionQuoteView,
     CompanySubscriptionView,
     CompanyVerifyView,
     MyCompaniesView,
@@ -33,6 +47,22 @@ urlpatterns = [
     path("subscriptions", AdminSubscriptionListView.as_view()),
     path("subscriptions/<int:pk>/activate", AdminSubscriptionActivateView.as_view()),
     path("subscriptions/<int:pk>/reject", AdminSubscriptionRejectView.as_view()),
+    # Admin plan + promo-code management.
+    path("admin/plans", AdminPlanListCreateView.as_view()),
+    path("admin/plans/<int:pk>", AdminPlanDetailView.as_view()),
+    path("admin/promo-codes", AdminPromoCodeListCreateView.as_view()),
+    path("admin/promo-codes/<int:pk>", AdminPromoCodeDetailView.as_view()),
+    # Billing: invoices + manual settlement + gateway webhook.
+    path("admin/invoices", AdminInvoiceListView.as_view()),
+    path("admin/invoices/<int:pk>", AdminInvoiceDetailView.as_view()),
+    path("admin/invoices/<int:pk>/pay", AdminRecordPaymentView.as_view()),
+    path("admin/invoices/<int:pk>/void", AdminVoidInvoiceView.as_view()),
+    path("billing/webhook", PaymentWebhookView.as_view()),
+    # Promotion campaigns.
+    path("admin/campaigns", AdminCampaignListCreateView.as_view()),
+    path("admin/campaigns/<int:pk>", AdminCampaignDetailView.as_view()),
+    path("admin/campaigns/<int:pk>/activate", AdminCampaignActivateView.as_view()),
+    path("admin/campaigns/<int:pk>/end", AdminCampaignEndView.as_view()),
     # Admin company-approval queue.
     path("admin/list", AdminCompanyListView.as_view()),
     # Post-scoped routes use a numeric id and are declared before the slug
@@ -41,6 +71,7 @@ urlpatterns = [
     path("posts/<int:post_id>/comments", CompanyPostCommentView.as_view()),
     path("<slug:slug>", CompanyDetailView.as_view()),
     path("<slug:slug>/subscription", CompanySubscriptionView.as_view()),
+    path("<slug:slug>/subscription/quote", CompanySubscriptionQuoteView.as_view()),
     path("<slug:slug>/follow", CompanyFollowView.as_view()),
     path("<slug:slug>/members", CompanyMembersView.as_view()),
     path("<slug:slug>/members/<int:member_id>", CompanyMemberDetailView.as_view()),
