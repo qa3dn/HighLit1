@@ -1,3 +1,15 @@
+![HighLit](docs/assets/github-banner.svg)
+
+## Project overview
+
+HighLit is a developer community graduation project with a Django REST backend, Next.js public frontend, and a separate React/Vite admin dashboard. The source includes community posts, code projects, jobs, company portals, moderation, and real-time modules.
+
+**Stack:** Python · Django REST Framework · Channels · PostgreSQL · Next.js · React · TypeScript.
+
+Start with the [project runbook](docs/PROJECT_RUNBOOK.md) and [API contract](docs/API_CONTRACT.md). The original project documentation and team information are preserved below. Some earlier phase notes predate the current admin dashboard; inspect the source and runbook for current structure.
+
+---
+
 # HighLit
 
 منصة مجتمعية للمطورين — **مشروع تخرّج**. التطوير الحالي يعتمد على **Django REST** و**Next.js**، مع خطة التوسع: **نشر مشاريع طلابية**، **بوابة للشركات**، **نظام فلترة**، و**لوحة إدارية**.
